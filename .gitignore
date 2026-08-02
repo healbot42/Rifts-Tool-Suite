@@ -4,6 +4,8 @@ node_modules/
 coverage/
 .cache/
 .turbo/
+.vite-temp/
+.vitest/
 *.tsbuildinfo
 .eslintcache
 .stylelintcache
@@ -37,10 +39,15 @@ tmp/
 output/
 *.tmp
 *.temp
+*.bak
+*.orig
 
 # Python caches and local virtual environments
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
 

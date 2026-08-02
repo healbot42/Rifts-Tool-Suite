@@ -62,7 +62,7 @@ function selectDevice(device) {
               v-for="(statistic, index) in selectedDevice.statistics"
               :key="`${statistic.label}-${index}`"
               class="statistic-card"
-              :class="{ wide: ['Powers', 'Creation Requirements', 'Penalties / Limitations'].includes(statistic.label) || statistic.label.startsWith('Mode —') }"
+              :class="{ wide: ['Powers / Effects', 'Modes', 'Construction Requirements', 'Penalties / Limitations'].includes(statistic.label) }"
             >
               <dt>{{ statistic.label }}</dt>
               <dd>{{ statistic.value }}</dd>

@@ -3,10 +3,19 @@ import { existsSync } from 'node:fs'
 import catalog from '../data/tw-devices.json'
 import { groupDevices, searchDevices } from './deviceSearch.js'
 
+const statisticOrder = [
+  'Damage', 'Powers / Effects', 'Modes', 'Range', 'Rate of Fire', 'Payload',
+  'Activation / Reload Cost', 'Duration', 'Price', 'Durability / Protection',
+  'Bonuses', 'Penalties / Limitations', 'Speed', 'Altitude', 'Weight / Capacity',
+  'Crew', 'Model / Manufacturer', 'Construction Cost', 'Construction Time',
+  'Construction Requirements',
+]
+
 describe('TW device catalog', () => {
   it('contains valid, uniquely identified entries', () => {
     expect(catalog.devices.length).toBeGreaterThan(100)
     expect(new Set(catalog.devices.map(device => device.id)).size).toBe(catalog.devices.length)
+    expect(new Set(catalog.devices.map(device => device.name)).size).toBe(catalog.devices.length)
     for (const device of catalog.devices) {
       expect(device).toMatchObject({
         id: expect.any(String), name: expect.any(String), category: expect.any(String),
@@ -15,6 +24,7 @@ describe('TW device catalog', () => {
         statistics: expect.any(Array),
       })
       expect(device.description.length).toBeGreaterThan(39)
+      expect(device.name).not.toMatch(/\([^)]*(?:\bby\b|rifts(?:®)?\s*(?:rpg|book|ultimate|edition|sourcebook))[^)]*\)/i)
       expect(existsSync(new URL(`../../../../public${device.image}`, import.meta.url))).toBe(true)
       for (const statistic of device.statistics) {
         expect(statistic).toMatchObject({ label: expect.any(String), value: expect.any(String) })
@@ -47,6 +57,24 @@ describe('TW device catalog', () => {
       expect(weapon.statistics.some(statistic => statistic.label === 'Damage')).toBe(true)
       expect(weapon.description).not.toMatch(/Zach Westendorf|Order #|\b[1-9]0[468]\b|\b[Ll]S\.P\./)
     }
+  })
+
+  it('uses a fixed card order and separates purchase, activation, and construction costs', () => {
+    for (const device of catalog.devices) {
+      const ranks = device.statistics.map(statistic => statisticOrder.indexOf(statistic.label))
+      expect(ranks.every(rank => rank >= 0)).toBe(true)
+      expect(ranks).toEqual([...ranks].sort((left, right) => left - right))
+      expect(device.statistics.some(statistic => ['Price / Cost', 'Activation / Energy Cost'].includes(statistic.label))).toBe(false)
+    }
+
+    const flamingSword = catalog.devices.find(device => device.id === 'flaming-sword-rifts-rpg')
+    expect(flamingSword.statistics.find(statistic => statistic.label === 'Price')?.value).toContain('90,000 credits')
+    expect(flamingSword.statistics.find(statistic => statistic.label === 'Construction Cost')?.value).toContain('275')
+    expect(flamingSword.statistics.find(statistic => statistic.label === 'Activation / Reload Cost')?.value).toMatch(/14 P\.P\.E\.|28 I\.S\.P\./)
+
+    const fireboltPistol = catalog.devices.find(device => device.id === 'tw-firebolt-pistol')
+    expect(fireboltPistol.statistics.find(statistic => statistic.label === 'Price')?.value).toMatch(/Gun: 80,000 credits.*clip: 40,000 cr/i)
+    expect(fireboltPistol.statistics.some(statistic => statistic.label === 'Activation / Reload Cost')).toBe(false)
   })
 
   it('keeps Book of Magic entries free of known PDF extraction artifacts', () => {

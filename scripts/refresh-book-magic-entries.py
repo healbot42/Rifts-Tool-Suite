@@ -21,6 +21,12 @@ def normalize_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value)
 
 
+def display_name(value: str) -> str:
+    """Remove author/source citations while retaining meaningful qualifiers."""
+    value = re.sub(r"\s*\([^)]*(?:\bby\b|rifts(?:®)?\s*(?:rpg|book|ultimate|edition|sourcebook))[^)]*\)", "", value, flags=re.I)
+    return re.sub(r"\s{2,}", " ", value).strip()
+
+
 def clean(value: str) -> str:
     value = re.sub(r"\u00ad\s*", "", value)
     value = re.sub(r"Zach Westendorf \(Order #\d+\)", "", value)
@@ -145,9 +151,19 @@ for device_id, (first_page, last_page, start_heading, end_heading) in manual_ent
 # This entry is protective equipment, not a firearm.
 by_id["tw-nuhr-talisman-of-armor"]["category"] = "Tools & Equipment"
 
+# The PDF has no device heading between this entry and the following vehicle
+# section, so stop the catalog description at the printed section title.
+thought_projector = by_id["thought-projector"]
+thought_projector["description"] = thought_projector["description"].split("Techno-Wizard Vehicles", 1)[0].strip()
+thought_projector["description"] = thought_projector["description"].replace(
+    "(yes, in this case it requires less I.S.P. than P.P.E. Cost:",
+    "(this device requires less I.S.P. than P.P.E.). Cost:",
+)
+
 # Apply the same cleanup to retained short references and entries whose source
 # heading could not be rematched, so old extraction artifacts cannot survive.
 for device in catalog["devices"]:
+    device["name"] = display_name(device["name"])
     device["description"] = clean(device["description"])
     device["description"] = re.sub(r"(?<!page )\b(?:31[4-9]|32\d|33[0-7])\b", "", device["description"], flags=re.I)
     device["description"] = clean(device["description"])
