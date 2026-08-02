@@ -1,4 +1,4 @@
-# Rifts Techno-Wizard Device Calculator
+# Rifts Tool Suite
 
 A small Vue 3 calculator based on the Techno-Wizard construction guidelines in *Rifts Ultimate Edition*, especially pages 129–132.
 
