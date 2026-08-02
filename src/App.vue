@@ -1,8 +1,8 @@
 <script setup>
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
-import TwCalculator from './pages/tw-calculator/TwCalculator.vue'
 
-// Future tools are feature modules and load only when the user opens them.
+// Each tool is an isolated feature module and loads only when opened.
+const TwCalculator = defineAsyncComponent(() => import('./pages/tw-calculator/index.js'))
 const InitiativeTracker = defineAsyncComponent(() => import('./pages/initiative-tracker/index.js'))
 const CharacterSheet = defineAsyncComponent(() => import('./pages/character-sheet/index.js'))
 

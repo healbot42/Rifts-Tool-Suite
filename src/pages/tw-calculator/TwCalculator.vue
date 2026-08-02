@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { RIFTS_GEMS, RIFTS_ULTIMATE_SPELLS } from '../../spells.js'
-import { downloadDevicePdf } from '../../pdfReport.js'
+import { RIFTS_GEMS, RIFTS_ULTIMATE_SPELLS } from './spells.js'
+import { downloadDevicePdf } from './pdfReport.js'
 import {
   CONSTRUCTION_BONUS_BY_ID,
   CONSTRUCTION_MODIFIER_BY_ID,
   RIFTS_CONSTRUCTION_BONUSES,
   RIFTS_CONSTRUCTION_MODIFIERS,
-} from '../../constructionModifiers.js'
+} from './constructionModifiers.js'
 import {
   buildFinalSummary,
   calculateChainActivation,
@@ -19,8 +19,8 @@ import {
   calculateRequiredGemCost,
   calculateSelectionPercent,
   clampNumber,
-} from '../../lib/calculations.js'
-import { createSpellSearchIndex, findMatchingSpells } from '../../lib/spellSearch.js'
+} from './lib/calculations.js'
+import { createSpellSearchIndex, findMatchingSpells } from './lib/spellSearch.js'
 
 const makeSpell = (primary = false) => ({
   id: crypto.randomUUID(),
@@ -435,7 +435,7 @@ async function exportPdf() {
 </script>
 
 <template>
-  <main>
+  <main class="tw-calculator-page">
     <header class="hero">
       <div>
         <p class="eyebrow">Rifts Ultimate Edition</p>
@@ -714,3 +714,5 @@ async function exportPdf() {
     </footer>
   </main>
 </template>
+
+<style scoped src="./tw-calculator.css"></style>
