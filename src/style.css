@@ -3,11 +3,15 @@
 body { margin: 0; min-width: 320px; background: radial-gradient(circle at top, #26382d, #101713 38rem); }
 button, input, select, textarea { font: inherit; }
 .app-ribbon { position: sticky; z-index: 200; top: 0; border-bottom: 1px solid #3b5042; background: rgba(14, 21, 17, .96); box-shadow: 0 8px 24px rgba(0, 0, 0, .18); backdrop-filter: blur(10px); }
-.app-ribbon-inner { width: min(1440px, calc(100% - 2rem)); min-height: 3.25rem; margin: 0 auto; display: flex; align-items: stretch; }
-.app-page-link { display: inline-flex; align-items: center; gap: .55rem; padding: 0 .9rem; border-bottom: 2px solid transparent; color: #bac8be; font-size: .82rem; font-weight: 800; text-decoration: none; }
+.app-ribbon-inner { width: min(1440px, calc(100% - 2rem)); min-height: 3.25rem; margin: 0 auto; display: flex; align-items: stretch; overflow-x: auto; }
+.app-page-link { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .55rem; padding: 0 .9rem; border-bottom: 2px solid transparent; color: #bac8be; font-size: .82rem; font-weight: 800; text-decoration: none; }
 .app-page-link.active { border-bottom-color: #d4b764; color: #f5f8f5; background: rgba(212, 183, 100, .08); }
 .app-page-icon { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; color: #d4b764; }
 main { width: min(1440px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+.tool-page { min-height: calc(100vh - 3.25rem); display: grid; place-items: center; }
+.coming-soon { width: min(38rem, 100%); padding: clamp(2rem, 8vw, 5rem); text-align: center; }
+.coming-soon h1 { font-size: clamp(2rem, 7vw, 3.75rem); }
+.coming-soon p:last-child { margin-bottom: 0; font-size: 1.1rem; }
 .hero { display: flex; justify-content: space-between; gap: 2rem; align-items: end; margin-bottom: 1.25rem; }
 h1 { margin: .2rem 0 .5rem; font-size: clamp(2rem, 5vw, 4rem); line-height: .98; letter-spacing: -.04em; }
 p { color: #bac8be; }

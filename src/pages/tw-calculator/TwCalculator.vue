@@ -368,6 +368,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  persistState()
   cancelScheduledSave()
   chartObserver?.disconnect()
   window.removeEventListener('pagehide', persistState)
