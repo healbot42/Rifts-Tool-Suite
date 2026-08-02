@@ -103,10 +103,13 @@ export function buildDevicePdf(report, JsPdf, descriptionStore) {
   row('Book bonuses subtotal', `+${number(report.calculations.selectedConstructionBonusPercent)}%`)
   row('Other custom skill modifier', `${report.state.constructionModifierPercent >= 0 ? '+' : ''}${number(report.state.constructionModifierPercent)}%`)
   row('Net construction skill modifier', `${report.calculations.totalSkillRollModifier >= 0 ? '+' : ''}${number(report.calculations.totalSkillRollModifier)}%`)
-  note('Construction bonuses and penalties modify the Techno-Wizardry Construction skill roll only. They do not change P.P.E., activation, gem, time, or credit calculations.')
+  note('The listed percentages modify the Techno-Wizardry Construction skill roll, not P.P.E. or credit cost. Options with a separate construction-time rule also apply the time adjustment shown below.')
   row('Final construction P.P.E.', number(report.calculations.modifiedPpeConstruction))
   row('Credit calculation', `${number(report.calculations.modifiedPpeConstruction)} x 10 x level ${number(report.state.deviceLevel)} + ${number(report.summary.gemsCredits)} gems + ${number(report.state.formCost)} form`)
   row('Technology construction', report.state.existingTechnology ? `Existing technology${report.state.creatorHasMechanicalSkill ? '; Mechanical skill halves base time' : ''}` : 'Built as a new device')
+  row('Book construction-time adjustment', report.calculations.constructionTimeAdjustment === 'None'
+    ? 'None'
+    : `${report.calculations.constructionTimeAdjustment} (x${number(report.calculations.constructionTimeMultiplier)})`)
   row('Assistant reduction', `${number(report.state.assistantTimeReduction)}% (maximum applied: 35%)`)
   note('Intermediate calculations retain full precision. Final summary values are rounded up to the next whole number.')
 

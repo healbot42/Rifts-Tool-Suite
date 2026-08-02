@@ -50,6 +50,20 @@ export function calculateConstructionCredits(constructionPpe, deviceLevel, formC
   return { beforeGems, total: beforeGems + clampNumber(gemCost) }
 }
 
+export function calculateConstructionHours(state, constructionPpe, timeMultiplier = 1) {
+  let hours
+  if (state.existingTechnology) {
+    hours = clampNumber(constructionPpe) * clampNumber(state.deviceLevel, 1)
+    if (state.creatorHasMechanicalSkill) hours /= 2
+  } else {
+    hours = clampNumber(constructionPpe) / 10 * clampNumber(state.deviceLevel, 1)
+  }
+  if (state.singleUse) hours /= 2
+  hours *= Number(timeMultiplier) || 1
+  hours *= 1 - Math.min(35, clampNumber(state.assistantTimeReduction)) / 100
+  return hours
+}
+
 export function buildFinalSummary(values) {
   return {
     ppeConstruction: roundUp(values.ppeConstruction),

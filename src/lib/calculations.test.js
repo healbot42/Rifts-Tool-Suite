@@ -4,6 +4,7 @@ import {
   calculateChainActivation,
   calculateChainBasePpe,
   calculateConstructionCredits,
+  calculateConstructionHours,
   calculateModePpe,
   calculateNetSkillRollModifier,
   calculateRequiredGemCost,
@@ -60,6 +61,19 @@ describe('device calculations', () => {
 
   it('keeps the before-gems subtotal separate from the gem-inclusive total', () => {
     expect(calculateConstructionCredits(100, 2, 500, 75)).toEqual({ beforeGems: 2500, total: 2575 })
+  })
+
+  it('applies book construction-time multipliers before assistant reduction', () => {
+    const state = { deviceLevel: 2, existingTechnology: false, singleUse: false, assistantTimeReduction: 25 }
+    expect(calculateConstructionHours(state, 100, 2 / 3)).toBe(10)
+    expect(calculateConstructionHours(state, 100, 1 / 3)).toBe(5)
+    expect(calculateConstructionHours(state, 100, 4 / 3)).toBe(20)
+    expect(calculateConstructionHours(state, 100, 2)).toBe(30)
+  })
+
+  it('applies existing-technology, mechanical-skill, and single-use time rules', () => {
+    const state = { deviceLevel: 2, existingTechnology: true, creatorHasMechanicalSkill: true, singleUse: true, assistantTimeReduction: 0 }
+    expect(calculateConstructionHours(state, 100, 1)).toBe(50)
   })
 
   it('rounds only final summary values upward', () => {

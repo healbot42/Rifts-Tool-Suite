@@ -13,6 +13,7 @@ import {
   calculateChainActivation,
   calculateChainBasePpe,
   calculateConstructionCredits,
+  calculateConstructionHours,
   calculateModePpe,
   calculateNetSkillRollModifier,
   calculateRequiredGemCost,
@@ -167,6 +168,14 @@ for (const chain of state.chains) {
   }
 }
 
+// Older saved devices may contain multiple time adjustments from before the
+// book's mutual-exclusion rule was enforced. Keep the first selected one.
+const savedTimeAdjustment = [
+  ...(state.constructionModifiers || []).map(selection => CONSTRUCTION_MODIFIER_BY_ID.get(selection.id)),
+  ...(state.constructionBonuses || []).map(selection => CONSTRUCTION_BONUS_BY_ID.get(selection.id)),
+].find(entry => entry?.timeExclusive)
+if (savedTimeAdjustment) removeOtherTimeAdjustments(savedTimeAdjustment.id)
+
 function requiredGemCost(chain, primaryGemCarats = chain.primaryGemCarats) {
   return calculateRequiredGemCost(chain, gemForSpell, primaryGemCarats)
 }
@@ -285,9 +294,20 @@ const selectedConstructionBonusMap = computed(() => new Map((state.constructionB
 function selectedConstructionModifier(id) {
   return selectedConstructionModifierMap.value.get(id)
 }
+function removeOtherTimeAdjustments(selectedId) {
+  state.constructionModifiers = (state.constructionModifiers || []).filter(selection => {
+    const entry = CONSTRUCTION_MODIFIER_BY_ID.get(selection.id)
+    return selection.id === selectedId || !entry?.timeExclusive
+  })
+  state.constructionBonuses = (state.constructionBonuses || []).filter(selection => {
+    const entry = CONSTRUCTION_BONUS_BY_ID.get(selection.id)
+    return selection.id === selectedId || !entry?.timeExclusive
+  })
+}
 function toggleConstructionModifier(modifier, checked) {
   state.constructionModifiers ||= []
   if (checked) {
+    if (modifier.timeExclusive) removeOtherTimeAdjustments(modifier.id)
     if (!selectedConstructionModifier(modifier.id)) state.constructionModifiers.push({ id: modifier.id, quantity: 1 })
   } else {
     state.constructionModifiers = state.constructionModifiers.filter(selection => selection.id !== modifier.id)
@@ -303,6 +323,7 @@ function selectedConstructionBonus(id) {
 function toggleConstructionBonus(bonus, checked) {
   state.constructionBonuses ||= []
   if (checked) {
+    if (bonus.timeExclusive) removeOtherTimeAdjustments(bonus.id)
     if (!selectedConstructionBonus(bonus.id)) state.constructionBonuses.push({ id: bonus.id, quantity: 1 })
   } else {
     state.constructionBonuses = state.constructionBonuses.filter(selection => selection.id !== bonus.id)
@@ -312,18 +333,19 @@ function setConstructionBonusQuantity(id, value) {
   const selection = selectedConstructionBonus(id)
   if (selection) selection.quantity = Math.max(1, Math.floor(Number(value) || 1))
 }
-const constructionHours = computed(() => {
-  let hours
-  if (state.existingTechnology) {
-    hours = modifiedPpeConstruction.value * clampNumber(state.deviceLevel, 1)
-    if (state.creatorHasMechanicalSkill) hours /= 2
-  } else {
-    hours = modifiedPpeConstruction.value / 10 * clampNumber(state.deviceLevel, 1)
+const activeTimeAdjustment = computed(() => {
+  for (const selection of state.constructionModifiers || []) {
+    const entry = CONSTRUCTION_MODIFIER_BY_ID.get(selection.id)
+    if (entry?.timeExclusive) return entry
   }
-  if (state.singleUse) hours /= 2
-  hours *= 1 - Math.min(35, clampNumber(state.assistantTimeReduction)) / 100
-  return hours
+  for (const selection of state.constructionBonuses || []) {
+    const entry = CONSTRUCTION_BONUS_BY_ID.get(selection.id)
+    if (entry?.timeExclusive) return entry
+  }
+  return null
 })
+const constructionTimeMultiplier = computed(() => activeTimeAdjustment.value?.timeMultiplier ?? 1)
+const constructionHours = computed(() => calculateConstructionHours(state, modifiedPpeConstruction.value, constructionTimeMultiplier.value))
 const totalActivation = computed(() => chainResults.value.reduce((sum, row) => sum + row.activation, 0))
 const hasLeyLineOnlyFunctions = computed(() => state.chains.some(chain => chain.mode === 'ley-only'))
 const allFunctionsRequireLeyLine = computed(() => !state.singleUse && state.chains.length > 0 && state.chains.every(chain => chain.mode === 'ley-only'))
@@ -397,6 +419,8 @@ async function exportPdf() {
         selectedConstructionModifierPercent: selectedConstructionModifierPercent.value,
         selectedConstructionBonusPercent: selectedConstructionBonusPercent.value,
         totalSkillRollModifier: totalSkillRollModifier.value,
+        constructionTimeAdjustment: activeTimeAdjustment.value?.label || 'None',
+        constructionTimeMultiplier: constructionTimeMultiplier.value,
       },
       chains: chainResults.value.map(({ ppeConstruction, activation, gemCost }) => ({ ppeConstruction, activation, gemCost })),
     })
@@ -577,6 +601,7 @@ async function exportPdf() {
       <label>Other custom skill-roll modifier (%)<input v-model.number="state.constructionModifierPercent" type="number" step="1" /></label>
       <label>Selected bonuses (%)<input :value="credits(selectedConstructionBonusPercent)" readonly /></label>
       <label>Total skill-roll modifier (%)<input :value="`${totalSkillRollModifier >= 0 ? '+' : ''}${credits(totalSkillRollModifier)}`" readonly /></label>
+      <label>Construction-time adjustment<input :value="activeTimeAdjustment ? `${activeTimeAdjustment.label} (x${credits(constructionTimeMultiplier)})` : 'None'" readonly /></label>
       <label class="wide">Notes<textarea v-model="state.notes" rows="3" /></label>
     </section>
 
