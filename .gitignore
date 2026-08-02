@@ -1,0 +1,41 @@
+# Dependencies and tool caches
+node_modules/
+.vite/
+coverage/
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary extraction and working files
+tmp/
+*.tmp
+*.temp
+
+# Local reference books and generated PDF exports
+*.pdf
+
+# Signing credentials and private keys
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Native build output if desktop packaging is added here later
+target/
+src-tauri/target/
