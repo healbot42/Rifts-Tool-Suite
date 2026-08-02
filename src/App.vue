@@ -1,18 +1,15 @@
 <script setup>
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
+import { pageFromHash } from './lib/navigation.js'
 
 // Each tool is an isolated feature module and loads only when opened.
 const TwCalculator = defineAsyncComponent(() => import('./pages/tw-calculator/index.js'))
+const TwDeviceBrowser = defineAsyncComponent(() => import('./pages/tw-device-browser/index.js'))
 const InitiativeTracker = defineAsyncComponent(() => import('./pages/initiative-tracker/index.js'))
 const CharacterSheet = defineAsyncComponent(() => import('./pages/character-sheet/index.js'))
 
-const pages = new Set(['tw-calculator', 'initiative-tracker', 'character-sheet'])
-const pageFromHash = () => {
-  const requestedPage = window.location.hash.slice(1)
-  return pages.has(requestedPage) ? requestedPage : 'tw-calculator'
-}
-const activePage = ref(pageFromHash())
-const syncPageFromHash = () => { activePage.value = pageFromHash() }
+const activePage = ref(pageFromHash(window.location.hash))
+const syncPageFromHash = () => { activePage.value = pageFromHash(window.location.hash) }
 
 onMounted(() => window.addEventListener('hashchange', syncPageFromHash))
 onBeforeUnmount(() => window.removeEventListener('hashchange', syncPageFromHash))
@@ -28,6 +25,13 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncPageFromHash)
           <path d="m7 14 1.5-1.5 1.5 1M14 11h4M14 14h4M14 17h2" />
         </svg>
         <span>TW Calculator</span>
+      </a>
+      <a class="app-page-link" :class="{ active: activePage === 'tw-device-browser' }" href="#tw-device-browser" :aria-current="activePage === 'tw-device-browser' ? 'page' : undefined">
+        <svg class="app-page-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16v12H4zM7 9h7v6H7zM17 9v2M17 14v1M9 6V3l2-2M14 4h3" />
+          <circle cx="17" cy="12" r="1" />
+        </svg>
+        <span>TW Devices</span>
       </a>
       <a class="app-page-link" :class="{ active: activePage === 'initiative-tracker' }" href="#initiative-tracker" :aria-current="activePage === 'initiative-tracker' ? 'page' : undefined">
         <svg class="app-page-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -50,6 +54,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncPageFromHash)
   </nav>
 
   <TwCalculator v-if="activePage === 'tw-calculator'" />
+  <TwDeviceBrowser v-else-if="activePage === 'tw-device-browser'" />
   <InitiativeTracker v-else-if="activePage === 'initiative-tracker'" />
   <CharacterSheet v-else />
 </template>

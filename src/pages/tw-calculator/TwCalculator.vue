@@ -405,7 +405,7 @@ const summary = computed(() => buildFinalSummary({
   hasLeyLineOnlyFunctions: hasLeyLineOnlyFunctions.value,
   allFunctionsRequireLeyLine: allFunctionsRequireLeyLine.value,
 }))
-async function exportPdf() {
+async function exportPdf(printerFriendly = false) {
   pdfExporting.value = true
   pdfExportError.value = ''
   try {
@@ -424,7 +424,7 @@ async function exportPdf() {
         constructionTimeMultiplier: constructionTimeMultiplier.value,
       },
       chains: chainResults.value.map(({ ppeConstruction, activation, gemCost }) => ({ ppeConstruction, activation, gemCost })),
-    })
+    }, { printerFriendly })
   } catch (error) {
     console.error('PDF export failed', error)
     pdfExportError.value = 'The PDF could not be created. Please try again.'
@@ -443,7 +443,8 @@ async function exportPdf() {
         <p>Build spell chains and estimate P.P.E., activation, construction time, and credit cost.</p>
       </div>
       <div class="actions">
-        <button :disabled="pdfExporting" @click="exportPdf">{{ pdfExporting ? 'Creating PDF...' : 'Export PDF' }}</button>
+        <button :disabled="pdfExporting" @click="exportPdf(false)">{{ pdfExporting ? 'Creating PDF...' : 'Export PDF' }}</button>
+        <button class="secondary" :disabled="pdfExporting" @click="exportPdf(true)">Printer-friendly PDF</button>
         <button @click="exportJson">Export JSON</button>
         <button class="secondary" @click="reset">Reset</button>
         <p v-if="pdfExportError" class="export-error" role="alert">{{ pdfExportError }}</p>

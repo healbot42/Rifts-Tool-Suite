@@ -34,8 +34,18 @@ Desktop.ini
 
 # Temporary extraction and working files
 tmp/
+output/
 *.tmp
 *.temp
+
+# Python caches and local virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Full-resolution ImageGen sources; optimized WebP assets are tracked
+public/assets/tw-devices/*.png
 
 # Local reference books and generated PDF exports
 *.pdf

@@ -4,6 +4,28 @@ import { CONSTRUCTION_BONUS_BY_ID, CONSTRUCTION_MODIFIER_BY_ID } from './constru
 const spellByName = new Map(RIFTS_ULTIMATE_SPELLS.map(spell => [spell.name.toLowerCase(), spell]))
 const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 const number = value => formatter.format(Number(value) || 0)
+export const PDF_COLORS = Object.freeze({
+  background: [7, 11, 24],
+  surface: [16, 26, 51],
+  raised: [23, 38, 74],
+  border: [52, 77, 122],
+  text: [237, 243, 255],
+  muted: [184, 199, 224],
+  accent: [242, 140, 40],
+  accentBright: [255, 173, 66],
+  blue: [77, 163, 255],
+})
+export const PRINT_PDF_COLORS = Object.freeze({
+  background: [255, 255, 255],
+  surface: [255, 255, 255],
+  raised: [255, 255, 255],
+  border: [150, 150, 150],
+  text: [0, 0, 0],
+  muted: [55, 55, 55],
+  accent: [0, 0, 0],
+  accentBright: [0, 0, 0],
+  blue: [0, 0, 0],
+})
 const modeNames = {
   standard: 'Standard',
   'ley-only': 'Ley line only (x1.5 construction P.P.E.; no activation cost)',
@@ -19,26 +41,35 @@ function safeText(value) {
 const selectedMode = (spell, catalogSpell) => catalogSpell?.ppeModes?.find(mode => mode.id === spell.ppeModeId) || catalogSpell?.ppeModes?.[0]
 const filename = value => String(value || 'tw-device').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'tw-device'
 
-export function buildDevicePdf(report, JsPdf, descriptionStore) {
+export function buildDevicePdf(report, JsPdf, descriptionStore, options = {}) {
+  const printerFriendly = Boolean(options.printerFriendly)
+  const colors = printerFriendly ? PRINT_PDF_COLORS : PDF_COLORS
   const doc = new JsPdf({ unit: 'pt', format: 'letter', compress: true })
   const page = { width: 612, height: 792, left: 48, right: 48, top: 48, bottom: 50 }
   const contentWidth = page.width - page.left - page.right
   let y = page.top
-  const addPage = () => { doc.addPage(); y = page.top }
+  const paintPage = () => {
+    doc.setFillColor(...colors.background)
+    doc.rect(0, 0, page.width, page.height, 'F')
+  }
+  const addPage = () => { doc.addPage(); paintPage(); y = page.top }
   const ensure = height => { if (y + height > page.height - page.bottom) addPage() }
-  const line = (yPos, color = [202, 164, 39]) => {
+  const line = (yPos, color = colors.border) => {
     doc.setDrawColor(...color); doc.setLineWidth(0.7); doc.line(page.left, yPos, page.width - page.right, yPos)
   }
   const heading = (text, level = 1) => {
     const size = level === 1 ? 17 : 12
-    ensure(size + 18)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(35, 73, 56)
-    doc.text(safeText(text), page.left, y); y += size + 4; line(y); y += 12
+    const topSpace = level === 1 ? 8 : 5
+    ensure(size + 18 + topSpace)
+    y += topSpace
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(...colors.accentBright)
+    doc.text(safeText(text), page.left, y); y += size + 4; line(y, level === 1 ? colors.accent : colors.border); y += 12
   }
   const paragraph = (text, options = {}) => {
     const size = options.size || 9.5
     const indent = options.indent || 0
-    doc.setFont('helvetica', options.bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(35, 35, 35)
+    doc.setFont('helvetica', options.bold ? 'bold' : 'normal'); doc.setFontSize(size)
+    doc.setTextColor(...(options.bold ? colors.text : colors.muted))
     const lineHeight = size + 3
     const lines = doc.splitTextToSize(safeText(text || 'Not provided.'), contentWidth - indent)
     let offset = 0
@@ -54,20 +85,26 @@ export function buildDevicePdf(report, JsPdf, descriptionStore) {
     y += options.after ?? 6
   }
   const row = (label, value) => {
-    ensure(16); doc.setFontSize(9.5); doc.setTextColor(45, 45, 45); doc.setFont('helvetica', 'bold')
-    doc.text(safeText(label), page.left, y); doc.setFont('helvetica', 'normal')
+    ensure(16); doc.setFontSize(9.5); doc.setTextColor(...colors.text); doc.setFont('helvetica', 'bold')
+    doc.text(safeText(label), page.left, y); doc.setFont('helvetica', 'normal'); doc.setTextColor(...colors.muted)
     const lines = doc.splitTextToSize(safeText(value), contentWidth - 180)
     doc.text(lines, page.left + 180, y); y += Math.max(14, lines.length * 12)
   }
   const note = text => paragraph(text, { size: 8, after: 7 })
 
-  doc.setFillColor(20, 48, 35); doc.rect(0, 0, page.width, 114, 'F')
-  doc.setTextColor(235, 196, 54); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+  paintPage()
+  if (!printerFriendly) {
+    doc.setFillColor(...colors.raised); doc.rect(0, 0, page.width, 114, 'F')
+    doc.setFillColor(...colors.accent); doc.rect(0, 110, page.width, 4, 'F')
+  }
+  doc.setTextColor(...colors.accentBright); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
   doc.text('RIFTS TECHNO-WIZARD DEVICE', page.left, 42)
-  doc.setTextColor(255, 255, 255); doc.setFontSize(23)
+  doc.setTextColor(...colors.text); doc.setFontSize(23)
   doc.text(doc.splitTextToSize(safeText(report.state.deviceName), contentWidth), page.left, 70)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('Construction report and spell reference', page.left, 100)
-  y = 140
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...colors.muted)
+  doc.text('Construction report and spell reference', page.left, 100)
+  if (printerFriendly) line(112, colors.text)
+  y = printerFriendly ? 132 : 140
 
   heading('Device summary')
   row('Form', report.state.form || 'Not specified'); row('Device level', number(report.state.deviceLevel))
@@ -155,14 +192,15 @@ export function buildDevicePdf(report, JsPdf, descriptionStore) {
 
   const generated = new Date(report.generatedAt).toLocaleString(); const pages = doc.getNumberOfPages()
   for (let index = 1; index <= pages; index += 1) {
-    doc.setPage(index); line(page.height - 34, [170, 170, 170]); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90, 90, 90)
+    doc.setPage(index); line(page.height - 34); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...colors.muted)
     doc.text(safeText(`Generated ${generated}`), page.left, page.height - 20)
     doc.text(`Page ${index} of ${pages}`, page.width - page.right, page.height - 20, { align: 'right' })
   }
   return doc
 }
 
-export async function downloadDevicePdf(report) {
+export async function downloadDevicePdf(report, options = {}) {
   const [{ jsPDF }, descriptions] = await Promise.all([import('jspdf'), import('./data/spell-descriptions.json')])
-  buildDevicePdf(report, jsPDF, descriptions.default).save(`${filename(report.state.deviceName)}-report.pdf`)
+  const suffix = options.printerFriendly ? '-printer-friendly-report.pdf' : '-report.pdf'
+  buildDevicePdf(report, jsPDF, descriptions.default, options).save(`${filename(report.state.deviceName)}${suffix}`)
 }
