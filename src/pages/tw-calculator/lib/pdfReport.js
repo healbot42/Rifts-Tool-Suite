@@ -1,5 +1,5 @@
-import { RIFTS_GEMS, RIFTS_ULTIMATE_SPELLS } from './spells.js'
-import { CONSTRUCTION_BONUS_BY_ID, CONSTRUCTION_MODIFIER_BY_ID } from './constructionModifiers.js'
+import { RIFTS_GEMS, RIFTS_ULTIMATE_SPELLS } from '../data/spells.js'
+import { CONSTRUCTION_BONUS_BY_ID, CONSTRUCTION_MODIFIER_BY_ID } from '../data/constructionModifiers.js'
 
 const spellByName = new Map(RIFTS_ULTIMATE_SPELLS.map(spell => [spell.name.toLowerCase(), spell]))
 const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
@@ -200,7 +200,7 @@ export function buildDevicePdf(report, JsPdf, descriptionStore, options = {}) {
 }
 
 export async function downloadDevicePdf(report, options = {}) {
-  const [{ jsPDF }, descriptions] = await Promise.all([import('jspdf'), import('./data/spell-descriptions.json')])
+  const [{ jsPDF }, descriptions] = await Promise.all([import('jspdf'), import('../data/spell-descriptions.json')])
   const suffix = options.printerFriendly ? '-printer-friendly-report.pdf' : '-report.pdf'
   buildDevicePdf(report, jsPDF, descriptions.default, options).save(`${filename(report.state.deviceName)}${suffix}`)
 }

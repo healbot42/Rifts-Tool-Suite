@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { jsPDF } from 'jspdf'
-import { buildDevicePdf, PDF_COLORS, PRINT_PDF_COLORS } from '../../../src/pages/tw-calculator/pdfReport.js'
+import { buildDevicePdf, PDF_COLORS, PRINT_PDF_COLORS } from '../../../src/pages/tw-calculator/lib/pdfReport.js'
 
 const report = {
   generatedAt: '2026-08-02T12:00:00.000Z',

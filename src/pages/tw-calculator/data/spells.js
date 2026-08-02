@@ -1,4 +1,4 @@
-// Canonical Techno-Wizard gem reference data from Rifts Ultimate Edition.
+// Canonical runtime spell and Techno-Wizard gem data.
 export const RIFTS_GEMS = Object.freeze({
   "agate-fire": Object.freeze({ name: "Agate (fire)", pricePerCarat: 80 }),
   "agate-red-orange": Object.freeze({ name: "Agate (red-orange)", pricePerCarat: 60 }),

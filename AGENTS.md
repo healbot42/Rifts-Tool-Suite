@@ -31,7 +31,7 @@ Tests live only under `tests/`; do not place new test files inside `src/`. Put s
 
 ## Page modules
 
-- `tw-calculator`: calculator UI, formulas, spells, gems, construction modifiers, charts, persistence, and PDF export.
+- `tw-calculator`: stable `TwCalculatorPage.vue` wrapper, `components/TwCalculatorApp.vue` implementation, runtime catalogs in `data/`, and calculation/export helpers in `lib/`.
 - `tw-device-browser`: searchable device catalog, standardized statistics, and device art.
 - `initiative-tracker`: isolated placeholder.
 - `character-sheet`: isolated placeholder.
@@ -43,7 +43,8 @@ Keep page-specific components, data, helpers, and styles inside that page direct
 - Saved devices use localStorage key `rifts-tw-device`; preserve backward compatibility when changing state.
 - Pure formulas belong in `src/pages/tw-calculator/lib/calculations.js`.
 - Spell search belongs in `lib/spellSearch.js` and must support substring matches.
-- `spells.js` contains runtime spell and gem metadata; `data/spell-descriptions.json` stores full descriptions used by PDF export.
+- `data/spells.js` contains runtime spell and gem metadata; `data/spell-descriptions.json` stores full descriptions used by PDF export.
+- PDF generation belongs in `lib/pdfReport.js`; construction modifier catalogs belong in `data/constructionModifiers.js`.
 - Round only final displayed totals upward unless a rule explicitly says otherwise. Preserve intermediate precision.
 - Keep themed and printer-friendly PDF outputs working.
 

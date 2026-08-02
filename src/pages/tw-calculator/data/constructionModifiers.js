@@ -1,3 +1,4 @@
+// Canonical construction penalty and bonus options.
 export const RIFTS_CONSTRUCTION_MODIFIERS = Object.freeze([
   { id: 'prototype-schematics', label: 'Prototype schematics', percent: 20, note: 'Rough plans and notes for a work in progress.' },
   { id: 'another-tw-schematics', label: "Working from another Techno-Wizard's schematics", percent: 10 },

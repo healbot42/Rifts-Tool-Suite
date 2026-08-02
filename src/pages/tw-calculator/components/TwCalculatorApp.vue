@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { RIFTS_GEMS, RIFTS_ULTIMATE_SPELLS } from './spells.js'
-import { downloadDevicePdf } from './pdfReport.js'
+import { RIFTS_GEMS, RIFTS_ULTIMATE_SPELLS } from '../data/spells.js'
+import { downloadDevicePdf } from '../lib/pdfReport.js'
 import {
   CONSTRUCTION_BONUS_BY_ID,
   CONSTRUCTION_MODIFIER_BY_ID,
   RIFTS_CONSTRUCTION_BONUSES,
   RIFTS_CONSTRUCTION_MODIFIERS,
-} from './constructionModifiers.js'
+} from '../data/constructionModifiers.js'
 import {
   buildFinalSummary,
   calculateChainActivation,
@@ -19,8 +19,8 @@ import {
   calculateRequiredGemCost,
   calculateSelectionPercent,
   clampNumber,
-} from './lib/calculations.js'
-import { createSpellSearchIndex, findMatchingSpells } from './lib/spellSearch.js'
+} from '../lib/calculations.js'
+import { createSpellSearchIndex, findMatchingSpells } from '../lib/spellSearch.js'
 
 const makeSpell = (primary = false) => ({
   id: crypto.randomUUID(),
@@ -716,4 +716,4 @@ async function exportPdf(printerFriendly = false) {
   </main>
 </template>
 
-<style scoped src="./tw-calculator.css"></style>
+<style scoped src="../tw-calculator.css"></style>

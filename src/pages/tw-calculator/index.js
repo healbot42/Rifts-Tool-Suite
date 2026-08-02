@@ -1,1 +1,1 @@
-export { default } from './TwCalculator.vue'
+export { default } from './TwCalculatorPage.vue'

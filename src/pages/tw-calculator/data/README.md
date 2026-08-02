@@ -1,5 +1,11 @@
 # Spell description data
 
+This directory contains the calculator's canonical runtime catalogs:
+
+- `spells.js`: spell index, variable P.P.E. modes, gem IDs, and gem prices.
+- `constructionModifiers.js`: construction penalties and bonuses.
+- `spell-descriptions.json`: full source text used by PDF reports.
+
 `spell-descriptions.json` is a versioned, lazily loaded data store used by PDF
 exports. Keeping it out of the initial calculator import path prevents the
 description text from increasing the initial JavaScript bundle.
