@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync } from 'node:fs'
-import catalog from '../data/tw-devices.json'
-import { groupDevices, searchDevices } from './deviceSearch.js'
+import catalog from '../../../src/pages/tw-device-browser/data/tw-devices.json'
+import { groupDevices, searchDevices } from '../../../src/pages/tw-device-browser/lib/deviceSearch.js'
 
 const statisticOrder = [
   'Damage', 'Powers / Effects', 'Modes', 'Range', 'Rate of Fire', 'Payload',
@@ -25,7 +25,7 @@ describe('TW device catalog', () => {
       })
       expect(device.description.length).toBeGreaterThan(39)
       expect(device.name).not.toMatch(/\([^)]*(?:\bby\b|rifts(?:®)?\s*(?:rpg|book|ultimate|edition|sourcebook))[^)]*\)/i)
-      expect(existsSync(new URL(`../../../../public${device.image}`, import.meta.url))).toBe(true)
+      expect(existsSync(new URL(`../../../public${device.image}`, import.meta.url))).toBe(true)
       for (const statistic of device.statistics) {
         expect(statistic).toMatchObject({ label: expect.any(String), value: expect.any(String) })
         if (statistic.details) expect(statistic.details).toEqual(expect.any(String))

@@ -9,7 +9,7 @@ import {
   calculateNetSkillRollModifier,
   calculateRequiredGemCost,
   calculateSelectionPercent,
-} from './calculations.js'
+} from '../../../src/pages/tw-calculator/lib/calculations.js'
 
 describe('variable spell P.P.E.', () => {
   it('supports fixed, additive, maximum, and per-unit modes', () => {

@@ -1,8 +1,8 @@
 # Spell description data
 
-`spell-descriptions.json` is a versioned, currently unimported data store for
-future document exports. Keeping it unimported prevents the description text
-from increasing the calculator's JavaScript bundle today.
+`spell-descriptions.json` is a versioned, lazily loaded data store used by PDF
+exports. Keeping it out of the initial calculator import path prevents the
+description text from increasing the initial JavaScript bundle.
 
 Each record is keyed as `level-{two-digit-level}-{normalized-spell-name}` and
 contains:

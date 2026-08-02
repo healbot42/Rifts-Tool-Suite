@@ -9,4 +9,6 @@ To integrate generated code for a placeholder tool:
 3. Use relative imports within the feature.
 4. Run `npm test` and `npm run build`.
 
+Place tests in `tests/pages/<page-name>/`, not inside the feature directory. See `tests/README.md` for conventions.
+
 The `index.js` and `*Page.vue` files form the stable interface to the suite and generally do not need to change. Placeholder tools are lazy-loaded, keeping their code out of the initial TW Calculator bundle.

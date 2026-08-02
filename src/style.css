@@ -45,6 +45,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .coming-soon { width: min(38rem, 100%); padding: clamp(2rem, 8vw, 5rem); text-align: center; background: linear-gradient(145deg, rgba(23, 38, 74, .96), rgba(10, 17, 37, .96)); }
 .coming-soon h1 { font-size: clamp(2rem, 7vw, 3.75rem); }
 .coming-soon p:last-child { margin-bottom: 0; font-size: 1.1rem; }
+.app-footer { width: min(1440px, calc(100% - 2rem)); margin: 0 auto; padding: 1.1rem 0 1.4rem; border-top: 1px solid var(--color-border); color: var(--color-text-muted); font-size: .75rem; letter-spacing: .06em; text-align: center; }
 @media (max-width: 540px) {
-  .app-ribbon-inner, .tool-page { width: calc(100% - 1rem); }
+  .app-ribbon-inner, .tool-page, .app-footer { width: calc(100% - 1rem); }
 }

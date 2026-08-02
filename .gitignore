@@ -30,9 +30,13 @@ pnpm-debug.log*
 # Editor and operating-system files
 .vscode/
 .idea/
+.codex/
+.agents/
 .DS_Store
 Thumbs.db
 Desktop.ini
+*.swp
+*.swo
 
 # Temporary extraction and working files
 tmp/

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createSpellSearchIndex, findMatchingSpells } from './spellSearch.js'
+import { createSpellSearchIndex, findMatchingSpells } from '../../../src/pages/tw-calculator/lib/spellSearch.js'
 
 const spells = [
   { name: 'Armor of Ithan' },

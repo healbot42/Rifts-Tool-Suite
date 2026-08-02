@@ -1,29 +1,56 @@
 # Rifts Tool Suite
 
-A small Vue 3 calculator based on the Techno-Wizard construction guidelines in *Rifts Ultimate Edition*, especially pages 129–132.
+Rifts Tool Suite v0.0.1 is a dark-mode Vue 3 application containing tools for Rifts gameplay and Techno-Wizard device creation. It is an unofficial fan utility.
 
-## Run
+## Available pages
+
+- **TW Calculator:** builds multi-function Techno-Wizard devices, calculates construction P.P.E., activation P.P.E., construction time, skill modifiers, gem requirements, and credit totals, and exports themed or printer-friendly PDF reports.
+- **TW Devices:** searches a categorized catalog of devices from the supplied sourcebooks. Each entry includes a themed line-art image, standardized quick-reference statistics, and the cleaned sourcebook entry.
+- **Initiative Tracker:** isolated placeholder ready for a future implementation.
+- **Character Sheet:** isolated placeholder ready for a future implementation.
+
+The top ribbon uses URL hashes to switch between lazy-loaded page modules. Site-wide colors live in `src/style.css`; page-specific code lives in `src/pages/<page-name>/`.
+
+## Setup and commands
 
 ```bash
 npm install
 npm run dev
+npm test
+npm run build
+npm run preview
 ```
 
-## Implemented calculations
+Automated tests are centralized under `tests/`. See `tests/README.md` for organization and maintenance instructions.
 
-- Spell-chain base P.P.E. construction cost.
-- Standard, ley-line-only, and ley-line hybrid multipliers.
-- Activation cost for applicable devices.
-- Single-use device adjustments.
-- Construction time for new devices or modifications to existing technology.
-- Physical construction cost, gem cost, form cost, and P.P.E. storage modifiers.
-- Multiple functions/spell chains.
-- Browser local-storage save and JSON export.
+For future automated maintenance, see `docs/MAINTAINER_AGENT.md`. Repository-specific coding-agent rules are in `AGENTS.md`.
 
-The book leaves several decisions to the G.M., including spell-chain composition, exact effects, gem requirements and prices, limitations, prototypes, and mistakes. Those values remain editable rather than being guessed by the app.
+## TW Calculator capabilities
 
-Rifts and related terms are trademarks of Palladium Books. This unofficial fan utility contains no reproduced rulebook text or artwork and requires the rulebook to use correctly.
+- Fixed and variable spell P.P.E. modes.
+- Standard, ley-line-only, ley-line hybrid, and single-use devices.
+- Multiple functions and spell chains.
+- Gem assignment and price-per-carat calculations.
+- Construction modifiers applied to skill, time, or cost as directed by the rules.
+- Separate totals for construction cost before gems and gem-inclusive cost.
+- Responsive price and activation graphs with tooltips.
+- Local save data under `rifts-tw-device` and JSON export.
+- Full-color and printer-friendly PDF reports containing calculations, gems, and spell descriptions.
+
+## TW device catalog maintenance
+
+Canonical catalog data is in `src/pages/tw-device-browser/data/tw-devices.json`. After refreshing source descriptions, run:
+
+```bash
+python scripts/refresh-book-magic-entries.py
+python scripts/refresh-rue-device-entries.py
+node scripts/extract-device-statistics.mjs
+```
+
+The statistics extractor uses a fixed card order and separates purchase price, activation/reload cost, and construction cost. Author and sourcebook parentheticals are removed from display names. Optimized device images live in `public/assets/tw-devices/`.
 
 ## Troubleshooting
 
-If Vite reports that it cannot parse `.vue` files, confirm that `vite.config.js` exists and contains the Vue plugin configuration. Then delete `node_modules` and `package-lock.json`, run `npm install`, and restart the dev server.
+If Vite cannot parse `.vue` files, confirm `vite.config.js` includes the Vue plugin. Reinstall dependencies only after checking that configuration. Full-resolution source images, PDFs, caches, local environments, and signing keys are excluded by `.gitignore`.
+
+Rifts and related terms are trademarks of Palladium Books. This project is not affiliated with or endorsed by Palladium Books.

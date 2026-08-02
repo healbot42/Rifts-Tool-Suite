@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PAGE_IDS, pageFromHash } from './navigation.js'
+import { PAGE_IDS, pageFromHash } from '../../src/lib/navigation.js'
 
 describe('suite page navigation', () => {
   it.each(PAGE_IDS)('selects the %s feature from its URL hash', page => {

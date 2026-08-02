@@ -57,4 +57,6 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncPageFromHash)
   <TwDeviceBrowser v-else-if="activePage === 'tw-device-browser'" />
   <InitiativeTracker v-else-if="activePage === 'initiative-tracker'" />
   <CharacterSheet v-else />
+
+  <footer class="app-footer">Rifts Tool Suite v0.0.1</footer>
 </template>
