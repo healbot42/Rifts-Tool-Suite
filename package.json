@@ -7,6 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "test:general": "vitest run tests/general",
+    "test:tw-calculator": "vitest run tests/pages/tw-calculator",
+    "test:tw-devices": "vitest run tests/pages/tw-device-browser",
+    "catalog:stats": "node scripts/extract-device-statistics.mjs",
+    "check": "npm run test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

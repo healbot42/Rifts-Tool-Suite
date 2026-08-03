@@ -18,10 +18,13 @@ npm install
 npm run dev
 npm test
 npm run build
+npm run check
 npm run preview
 ```
 
 Automated tests are centralized under `tests/`. See `tests/README.md` for organization and maintenance instructions.
+
+The release footer is generated from the version in `package.json`, preventing UI/package version drift.
 
 For future automated maintenance, see `docs/MAINTAINER_AGENT.md`. Repository-specific coding-agent rules are in `AGENTS.md`.
 
@@ -44,7 +47,7 @@ Canonical catalog data is in `src/pages/tw-device-browser/data/tw-devices.json`.
 ```bash
 python scripts/refresh-book-magic-entries.py
 python scripts/refresh-rue-device-entries.py
-node scripts/extract-device-statistics.mjs
+npm run catalog:stats
 ```
 
 The statistics extractor uses a fixed card order and separates purchase price, activation/reload cost, and construction cost. Author and sourcebook parentheticals are removed from display names. Optimized device images live in `public/assets/tw-devices/`.

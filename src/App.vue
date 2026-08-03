@@ -1,6 +1,7 @@
 <script setup>
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import { pageFromHash } from './lib/navigation.js'
+import { APP_RELEASE_LABEL } from './lib/release.js'
 
 // Each tool is an isolated feature module and loads only when opened.
 const TwCalculator = defineAsyncComponent(() => import('./pages/tw-calculator/index.js'))
@@ -58,5 +59,5 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncPageFromHash)
   <InitiativeTracker v-else-if="activePage === 'initiative-tracker'" />
   <CharacterSheet v-else />
 
-  <footer class="app-footer">Rifts Tool Suite v0.0.1</footer>
+  <footer class="app-footer">{{ APP_RELEASE_LABEL }}</footer>
 </template>

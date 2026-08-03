@@ -2,9 +2,10 @@
 
 ## Purpose
 
-Use this file to make safe, consistent updates to Rifts Tool Suite v0.0.1, a static Vue 3 and Vite application. Preserve the separation between suite-wide code and individual tool pages.
+Use this file to make safe, consistent updates to Rifts Tool Suite, a static Vue 3 and Vite application. The current release version comes from `package.json`. Preserve the separation between suite-wide code and individual tool pages.
 
 The reusable maintainer-agent brief and starter prompt are documented in `docs/MAINTAINER_AGENT.md`.
+The project-scoped `maintenance_cleaner` custom agent is defined in `.codex/agents/maintenance-cleaner.toml`. Use it for evidence-based cleanup, architecture consistency, documentation/test drift, and low-risk maintenance work.
 
 ## Required verification
 
@@ -15,7 +16,10 @@ npm test
 npm run build
 ```
 
+`npm run check` runs both in sequence. Page-specific test commands are documented in `tests/README.md` and `package.json`.
+
 Tests live only under `tests/`; do not place new test files inside `src/`. Put suite-wide tests in `tests/general/` and page-specific tests in `tests/pages/<page-name>/`.
+`tests/general/projectStructure.test.js` enforces the page-module, centralized-test, release-version, and custom-agent conventions; update that test deliberately when the architecture changes.
 
 ## Architecture
 
@@ -23,6 +27,7 @@ Tests live only under `tests/`; do not place new test files inside `src/`. Put s
 - `src/App.vue`: suite-level ribbon, hash navigation, lazy page loading, and release footer.
 - `src/style.css`: site-wide dark blue/orange theme and shared UI rules.
 - `src/lib/navigation.js`: valid page IDs and hash parsing.
+- `src/lib/release.js`: derives the site-wide release label from `package.json`.
 - `src/pages/<page-name>/`: isolated feature modules. Other pages should import only a feature's `index.js`.
 - `tests/`: centralized test suite organized into `general/` and `pages/`.
 - `scripts/`: sourcebook extraction, catalog generation, and image optimization.
@@ -67,7 +72,7 @@ Never commit the local sourcebook PDFs or full-resolution PNG generations. The `
 
 ## Versioning
 
-The visible version appears in the `src/App.vue` footer and must match `package.json` and the root package entry in `package-lock.json`. Update documentation when releasing a new version.
+`package.json` is the runtime source of truth for the visible footer version through `src/lib/release.js`. When releasing, update `package.json` and the root package entries in `package-lock.json`, then update release-specific documentation and run `npm run check`. Do not hardcode the version in Vue components.
 
 ## Git safety
 

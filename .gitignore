@@ -30,7 +30,10 @@ pnpm-debug.log*
 # Editor and operating-system files
 .vscode/
 .idea/
-.codex/
+.codex/*
+!.codex/agents/
+!.codex/agents/*.toml
+!.codex/config.toml
 .agents/
 .DS_Store
 Thumbs.db
