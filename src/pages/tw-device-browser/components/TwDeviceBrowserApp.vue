@@ -30,7 +30,7 @@ function selectDevice(device) {
         <input id="device-search" v-model="query" type="search" placeholder="Name, category, or entry text…" autocomplete="off">
         <p class="result-count" aria-live="polite">{{ filteredDevices.length }} of {{ catalog.devices.length }} devices</p>
         <nav class="category-list" aria-label="Device categories">
-          <details v-for="group in groupedDevices" :key="group.category" open>
+          <details v-for="group in groupedDevices" :key="group.category">
             <summary>{{ group.category }} <span>{{ group.devices.length }}</span></summary>
             <button
               v-for="device in group.devices"

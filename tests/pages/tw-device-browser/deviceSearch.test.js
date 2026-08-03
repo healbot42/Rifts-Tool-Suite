@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync } from 'node:fs'
 import catalog from '../../../src/pages/tw-device-browser/data/tw-devices.json'
+import { STATISTIC_ORDER } from '../../../src/pages/tw-device-browser/data/statistics.js'
 import { groupDevices, searchDevices } from '../../../src/pages/tw-device-browser/lib/deviceSearch.js'
-
-const statisticOrder = [
-  'Damage', 'Powers / Effects', 'Modes', 'Range', 'Rate of Fire', 'Payload',
-  'Activation / Reload Cost', 'Duration', 'Price', 'Durability / Protection',
-  'Bonuses', 'Penalties / Limitations', 'Speed', 'Altitude', 'Weight / Capacity',
-  'Crew', 'Model / Manufacturer', 'Construction Cost', 'Construction Time',
-  'Construction Requirements',
-]
 
 describe('TW device catalog', () => {
   it('contains valid, uniquely identified entries', () => {
@@ -61,7 +54,7 @@ describe('TW device catalog', () => {
 
   it('uses a fixed card order and separates purchase, activation, and construction costs', () => {
     for (const device of catalog.devices) {
-      const ranks = device.statistics.map(statistic => statisticOrder.indexOf(statistic.label))
+      const ranks = device.statistics.map(statistic => STATISTIC_ORDER.indexOf(statistic.label))
       expect(ranks.every(rank => rank >= 0)).toBe(true)
       expect(ranks).toEqual([...ranks].sort((left, right) => left - right))
       expect(device.statistics.some(statistic => ['Price / Cost', 'Activation / Energy Cost'].includes(statistic.label))).toBe(false)

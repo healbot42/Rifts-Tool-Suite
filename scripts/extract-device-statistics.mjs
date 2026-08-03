@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { STATISTIC_ORDER } from '../src/pages/tw-device-browser/data/statistics.js'
 
 const catalogPath = new URL('../src/pages/tw-device-browser/data/tw-devices.json', import.meta.url)
 const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
@@ -13,29 +14,6 @@ const normalizeDice = value => normalize(value)
   .replace(/\bl\.S\.P\./g, 'I.S.P.')
   .replace(/([+-])\s*[Il](?=\s|$)/g, '$1 1')
   .replace(/\bo f\b/gi, 'of')
-
-export const STATISTIC_ORDER = [
-  'Damage',
-  'Powers / Effects',
-  'Modes',
-  'Range',
-  'Rate of Fire',
-  'Payload',
-  'Activation / Reload Cost',
-  'Duration',
-  'Price',
-  'Durability / Protection',
-  'Bonuses',
-  'Penalties / Limitations',
-  'Speed',
-  'Altitude',
-  'Weight / Capacity',
-  'Crew',
-  'Model / Manufacturer',
-  'Construction Cost',
-  'Construction Time',
-  'Construction Requirements',
-]
 
 // Only actual sourcebook field names belong here. The previous generic colon parser
 // treated numbered powers such as "Command Ghouls (10 P.P.E.):" as new cards.

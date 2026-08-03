@@ -4,6 +4,7 @@ This feature is isolated from the calculator and other suite pages. Its entry po
 
 - `components/` contains the browser UI and generated-image renderer.
 - `data/tw-devices.json` contains the sourcebook catalog.
+- `data/statistics.js` defines the canonical statistics-card order shared by catalog generation and tests.
 - `lib/deviceSearch.js` contains framework-independent search and grouping helpers.
 - Each catalog entry also contains pre-extracted `statistics` used by the quick-reference game-statistics panel.
 
