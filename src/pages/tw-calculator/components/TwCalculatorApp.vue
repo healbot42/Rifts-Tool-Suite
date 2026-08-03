@@ -21,9 +21,10 @@ import {
   clampNumber,
 } from '../lib/calculations.js'
 import { createSpellSearchIndex, findMatchingSpells } from '../lib/spellSearch.js'
+import { createRuntimeId } from '../lib/runtimeId.js'
 
 const makeSpell = (primary = false) => ({
-  id: crypto.randomUUID(),
+  id: createRuntimeId(),
   name: '',
   ppe: 0,
   ppeText: '',
@@ -34,7 +35,7 @@ const makeSpell = (primary = false) => ({
 })
 
 const makeChain = (index = 1) => ({
-  id: crypto.randomUUID(),
+  id: createRuntimeId(),
   name: `Function ${index}`,
   primaryGemCarats: 1,
   gemCost: 0,

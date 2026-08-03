@@ -77,3 +77,16 @@ Never commit the local sourcebook PDFs or full-resolution PNG generations. The `
 ## Git safety
 
 Preserve unrelated user changes. Do not reset or discard a dirty worktree. Commit generated `dist` changes together with the source changes that produced them.
+
+## End-of-day workflow
+
+When the user says they are "done for the day," treat that phrase as explicit authorization to complete this repository shutdown workflow in order:
+
+1. Run the project-scoped `maintenance_cleaner` agent for an evidence-based final audit and safe, behavior-preserving fixes.
+2. Run `npm run check` and `git diff --check`; resolve any failures before continuing.
+3. Review the final diff, commit all intended repository changes, and push the current branch to its configured GitHub remote.
+4. Confirm the push succeeded and the worktree is clean.
+5. Stop the running local development site.
+6. Close Visual Studio Code last.
+
+Do not discard unrelated work or bypass failures to reach shutdown. If maintenance, verification, commit, or push cannot be completed, report the blocker and leave the local site and Visual Studio Code running so the user can recover safely.
