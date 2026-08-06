@@ -39,7 +39,7 @@ Tests live only under `tests/`; do not place new test files inside `src/`. Put s
 - `tw-calculator`: stable `TwCalculatorPage.vue` wrapper, `components/TwCalculatorApp.vue` implementation, runtime catalogs in `data/`, and calculation/export helpers in `lib/`.
 - `tw-device-browser`: searchable device catalog, standardized statistics, and device art.
 - `initiative-tracker`: isolated placeholder.
-- `character-sheet`: isolated placeholder.
+- `character-sheet`: auto-saving character builder and play-mode reference sheet.
 
 Keep page-specific components, data, helpers, and styles inside that page directory. Keep shared navigation and theme code at suite level. Pages are lazy-loaded for mobile performance.
 

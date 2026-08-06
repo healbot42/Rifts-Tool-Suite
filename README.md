@@ -7,7 +7,7 @@ Rifts Tool Suite v0.0.1 is a dark-mode Vue 3 application containing tools for Ri
 - **TW Calculator:** builds multi-function Techno-Wizard devices, calculates construction P.P.E., activation P.P.E., construction time, skill modifiers, gem requirements, and credit totals, and exports themed or printer-friendly PDF reports.
 - **TW Devices:** searches a categorized catalog of devices from the supplied sourcebooks. Each entry includes a themed line-art image, standardized quick-reference statistics, and the cleaned sourcebook entry.
 - **Initiative Tracker:** isolated placeholder ready for a future implementation.
-- **Character Sheet:** isolated placeholder ready for a future implementation.
+- **Character Sheet:** builds and auto-saves characters, applies class and trained-skill effects, validates skill choices, and provides a play-mode reference with live resource and equipment tracking.
 
 The top ribbon uses URL hashes to switch between lazy-loaded page modules. Site-wide colors live in `src/style.css`; page-specific code lives in `src/pages/<page-name>/`.
 

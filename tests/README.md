@@ -7,6 +7,7 @@ All automated tests live in this directory so they can be found and maintained w
 - `general/`: suite-wide behavior such as navigation, release metadata, and repository-structure invariants.
 - `pages/tw-calculator/`: calculator formulas, spell search, and PDF export.
 - `pages/tw-device-browser/`: device catalog, search, statistics, and data-integrity checks.
+- `pages/character-sheet/`: character calculations, skill data, and O.C.C. package integrity.
 - Add future page tests under `pages/<page-name>/`.
 
 ## Commands
@@ -17,6 +18,7 @@ npm run test:watch
 npm run test:general
 npm run test:tw-calculator
 npm run test:tw-devices
+npm run test:character-sheet
 npm run check
 ```
 
