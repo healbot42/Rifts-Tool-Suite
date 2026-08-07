@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { existsSync } from 'node:fs'
 import catalog from '../../../src/pages/tw-device-browser/data/tw-devices.json'
 import { STATISTIC_ORDER } from '../../../src/pages/tw-device-browser/data/statistics.js'
+import { resolveDeviceImageUrl } from '../../../src/pages/tw-device-browser/lib/deviceAssets.js'
 import { groupDevices, searchDevices } from '../../../src/pages/tw-device-browser/lib/deviceSearch.js'
 
 describe('TW device catalog', () => {
+  it('resolves catalog images beneath the deployed site base path', () => {
+    expect(resolveDeviceImageUrl('/assets/tw-devices/example.webp', '/Rifts-Tool-Suite/'))
+      .toBe('/Rifts-Tool-Suite/assets/tw-devices/example.webp')
+  })
+
   it('contains valid, uniquely identified entries', () => {
     expect(catalog.devices.length).toBeGreaterThan(100)
     expect(new Set(catalog.devices.map(device => device.id)).size).toBe(catalog.devices.length)

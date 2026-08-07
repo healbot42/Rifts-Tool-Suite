@@ -1,11 +1,13 @@
 <script setup>
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { resolveDeviceImageUrl } from '../lib/deviceAssets.js'
 
-defineProps({ device: { type: Object, required: true } })
+const props = defineProps({ device: { type: Object, required: true } })
 
 const expanded = ref(false)
 const imageButton = ref(null)
 const closeButton = ref(null)
+const imageUrl = computed(() => resolveDeviceImageUrl(props.device.image))
 
 function openImage() {
   expanded.value = true
@@ -30,7 +32,7 @@ function closeImage() {
     >
       <img
         class="device-image-art"
-        :src="device.image"
+        :src="imageUrl"
         :alt="`Original minimal line-art concept of ${device.name}`"
         width="1280"
         height="720"
@@ -64,7 +66,7 @@ function closeImage() {
         </button>
         <img
           class="device-image-expanded"
-          :src="device.image"
+          :src="imageUrl"
           :alt="`Original minimal line-art concept of ${device.name}`"
           width="1280"
           height="720"
