@@ -1,6 +1,13 @@
-export function skillChoiceAvailable({ selected, relatedEligible, secondaryEligible, relatedRemaining, secondaryRemaining }) {
-  if (selected) return false
-  return (relatedEligible && relatedRemaining > 0) || (secondaryEligible && secondaryRemaining > 0)
+export function countsTowardSkillAllowance(record, allowanceType) {
+  if (!record.selected) return false
+  if (allowanceType === 'related') return record.trainingType === 'related'
+  if (allowanceType === 'secondary') return !['occ','occ-choice','related'].includes(record.trainingType)
+  return false
+}
+
+export function skillChoiceAvailable({ selected, occSkill, relatedEligible, relatedRemaining }) {
+  if (selected || occSkill) return false
+  return relatedEligible && relatedRemaining > 0
 }
 
 export function categoryChoiceAvailable(ids, availabilityFor) {

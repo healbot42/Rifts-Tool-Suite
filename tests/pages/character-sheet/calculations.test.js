@@ -4,16 +4,30 @@ import { skillCategories, skillsById } from '../../../src/pages/character-sheet/
 import { languages } from '../../../src/pages/character-sheet/data/languages.js'
 import { skillDescription } from '../../../src/pages/character-sheet/lib/skillDescriptions.js'
 import { skillEffects, skillSynergies } from '../../../src/pages/character-sheet/data/skillEffects.js'
-import { categoryChoiceAvailable, skillChoiceAvailable } from '../../../src/pages/character-sheet/lib/skillAvailability.js'
-import { combatCyborg, combatCyborgRelated, secondaryEligible } from '../../../src/pages/character-sheet/data/occs.js'
+import { categoryChoiceAvailable, countsTowardSkillAllowance, skillChoiceAvailable } from '../../../src/pages/character-sheet/lib/skillAvailability.js'
+import { combatCyborg, combatCyborgRelated, crazy, crazyRelated, defineOcc, occs, secondaryEligible } from '../../../src/pages/character-sheet/data/occs.js'
 
 describe('character sheet calculations', () => {
   it('highlights only unselected skills with a remaining eligible choice', () => {
-    expect(skillChoiceAvailable({ selected:false, relatedEligible:true, secondaryEligible:false, relatedRemaining:1, secondaryRemaining:0 })).toBe(true)
-    expect(skillChoiceAvailable({ selected:true, relatedEligible:true, secondaryEligible:true, relatedRemaining:1, secondaryRemaining:1 })).toBe(false)
-    expect(skillChoiceAvailable({ selected:false, relatedEligible:true, secondaryEligible:true, relatedRemaining:0, secondaryRemaining:0 })).toBe(false)
+    expect(skillChoiceAvailable({ selected:false, relatedEligible:true, relatedRemaining:1 })).toBe(true)
+    expect(skillChoiceAvailable({ selected:true, relatedEligible:true, relatedRemaining:1 })).toBe(false)
+    expect(skillChoiceAvailable({ selected:false, occSkill:true, relatedEligible:true, relatedRemaining:1 })).toBe(false)
+    expect(skillChoiceAvailable({ selected:false, relatedEligible:false, relatedRemaining:1 })).toBe(false)
+    expect(skillChoiceAvailable({ selected:false, relatedEligible:true, relatedRemaining:0 })).toBe(false)
     expect(categoryChoiceAvailable(['selected', 'available'], id => id === 'available')).toBe(true)
     expect(categoryChoiceAvailable(['selected'], () => false)).toBe(false)
+  })
+
+  it('counts only selected related or secondary skills toward their allowances', () => {
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'related' }, 'related')).toBe(true)
+    expect(countsTowardSkillAllowance({ selected:false, trainingType:'related' }, 'related')).toBe(false)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'occ' }, 'related')).toBe(false)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'occ-choice' }, 'related')).toBe(false)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'secondary' }, 'secondary')).toBe(true)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'custom' }, 'secondary')).toBe(true)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'' }, 'secondary')).toBe(true)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'related' }, 'secondary')).toBe(false)
+    expect(countsTowardSkillAllowance({ selected:true, trainingType:'occ' }, 'secondary')).toBe(false)
   })
 
   it('applies exceptional attribute bonuses from the RUE chart', () => {
@@ -94,6 +108,33 @@ describe('character sheet calculations', () => {
     expect(combatCyborgRelated('first-aid')).toEqual({ eligible:true, bonus:5, category:'Medical' })
     expect(combatCyborgRelated('wilderness-survival').eligible).toBe(false)
     expect(secondaryEligible('swimming')).toBe(true)
-    expect(secondaryEligible('cryptography')).toBe(false)
+    expect(secondaryEligible('cryptography')).toBe(true)
+  })
+
+  it('defines the Crazies O.C.C. package from the next class in the book', () => {
+    expect(crazy.relatedAtLevel(1)).toBe(7)
+    expect(crazy.relatedAtLevel(12)).toBe(15)
+    expect(crazy.secondaryAtLevel(1)).toBe(6)
+    expect(crazy.secondaryAtLevel(12)).toBe(10)
+    expect(crazy.defaults).toMatchObject({ ps:19, pp:17, strengthType:'augmented' })
+    for (const [id] of crazy.automaticSkills) expect(skillsById[id], `missing automatic skill ${id}`).toBeDefined()
+    for (const choice of crazy.choices) for (const id of choice.options) expect(skillsById[id], `missing choice ${id}`).toBeDefined()
+    expect(crazyRelated('detect-ambush')).toEqual({ eligible:true, bonus:10, category:'Espionage' })
+    expect(crazyRelated('first-aid')).toEqual({ eligible:true, bonus:10, category:'Medical' })
+    expect(crazyRelated('basic-electronics').eligible).toBe(false)
+  })
+
+  it('normalizes optional class capabilities for safe editing and play mode', () => {
+    const minimal = defineOcc({ id:'minimal', name:'Minimal O.C.C.' })
+    expect(minimal).toMatchObject({ defaults:{}, mdc:null, combatBonuses:{}, automaticSkills:[], choices:[], abilities:[] })
+    expect(minimal.relatedAtLevel(10)).toBe(0)
+    expect(minimal.secondaryAtLevel(10)).toBe(0)
+    expect(minimal.relatedSkillInfo('swimming')).toEqual({ eligible:false, bonus:0, category:'' })
+    for (const occ of occs) {
+      expect(occ.languages).toMatchObject({ nativeBase:expect.any(Number), nativeBonus:expect.any(Number), otherBonus:expect.any(Number) })
+      expect(Array.isArray(occ.automaticSkills)).toBe(true)
+      expect(Array.isArray(occ.choices)).toBe(true)
+      expect(Array.isArray(occ.abilities)).toBe(true)
+    }
   })
 })

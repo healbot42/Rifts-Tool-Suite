@@ -3,10 +3,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { skillCategories, skills, skillsById } from '../data/skills.js'
 import { languages, languageRules } from '../data/languages.js'
 import { skillEffects, skillSynergies } from '../data/skillEffects.js'
-import { combatCyborgRelated, occs, occsById, secondaryEligible } from '../data/occs.js'
+import { occs, occsById, secondaryEligible } from '../data/occs.js'
 import { attributeBonus, hitPoints, movement, skillTotal, weightLimits } from '../lib/calculations.js'
 import { skillDescription } from '../lib/skillDescriptions.js'
-import { categoryChoiceAvailable, skillChoiceAvailable } from '../lib/skillAvailability.js'
+import { categoryChoiceAvailable, countsTowardSkillAllowance, skillChoiceAvailable } from '../lib/skillAvailability.js'
 import '../character-sheet.css'
 
 const STORAGE_KEY = 'rifts-character-sheet'
@@ -71,10 +71,11 @@ skills.forEach(skill => skillRecord(skill.id))
 
 const iqBonus = computed(() => attributeBonus('iq', state.attributes.iq))
 const activeOcc = computed(() => occsById[state.identity.occ] || null)
+const activeOccMdc = computed(() => activeOcc.value?.mdc || null)
 const relatedTotal = computed(() => activeOcc.value?.relatedAtLevel(state.level) || 0)
 const secondaryTotal = computed(() => activeOcc.value?.secondaryAtLevel(state.level) || 0)
-const relatedUsed = computed(() => skills.filter(skill=>skillRecord(skill.id).trainingType==='related').length)
-const secondaryUsed = computed(() => skills.filter(skill=>skillRecord(skill.id).trainingType==='secondary').length)
+const relatedUsed = computed(() => skills.filter(skill=>countsTowardSkillAllowance(skillRecord(skill.id),'related')).length)
+const secondaryUsed = computed(() => skills.filter(skill=>countsTowardSkillAllowance(skillRecord(skill.id),'secondary')).length)
 const relatedRemaining = computed(() => Math.max(0, relatedTotal.value-relatedUsed.value))
 const secondaryRemaining = computed(() => Math.max(0, secondaryTotal.value-secondaryUsed.value))
 const trainedPercentageSkills = computed(() => skills.filter(skill=>skillRecord(skill.id).selected&&skill.base!=null).sort((a,b)=>a.name.localeCompare(b.name)))
@@ -104,13 +105,14 @@ function tabStatus(tab) {
 }
 function enterPlayMode() {
   mode.value='play'
+  state.play.equipment ||= {}
   if (state.play.hp==null) state.play.hp=derived.value.hp
   if (state.play.sdc==null) state.play.sdc=derived.value.sdc
   if (state.play.isp==null) state.play.isp=state.resources.isp
   if (state.play.ppe==null) state.play.ppe=state.resources.ppe
   if (state.play.chi==null) state.play.chi=state.resources.chi
-  if (state.play.mdc==null) state.play.mdc=activeOcc.value?.mdc.mainBody ?? 0
-  if (state.play.armorMdc==null) state.play.armorMdc=activeOcc.value?.mdc.armor ?? 0
+  if (state.play.mdc==null) state.play.mdc=activeOccMdc.value?.mainBody ?? 0
+  if (state.play.armorMdc==null) state.play.armorMdc=activeOccMdc.value?.armor ?? 0
   for (const section of equipmentSections) for (const item of state.equipment[section.id]) equipmentStatus(item)
 }
 function equipmentId() { return globalThis.crypto?.randomUUID?.() || `equipment-${Date.now()}-${Math.random().toString(36).slice(2)}` }
@@ -151,7 +153,8 @@ const trainedEffects = computed(() => {
 })
 const effectiveAttributes = computed(() => Object.fromEntries(Object.entries(state.attributes).map(([key, value]) => [key, (+value || 0) + (trainedEffects.value.attributes[key] || 0)])))
 const derived = computed(() => {
-  const totalAttacks = (+state.attacks || 0) + trainedEffects.value.attacks
+  const classBonuses = activeOcc.value?.combatBonuses || {}
+  const totalAttacks = (+state.attacks || 0) + trainedEffects.value.attacks + (classBonuses.attacks || 0)
   const move = movement(effectiveAttributes.value.spd, totalAttacks)
   const weight = weightLimits(effectiveAttributes.value.ps, state.strengthType)
   return {
@@ -161,12 +164,12 @@ const derived = computed(() => {
     strike: attributeBonus('pp', effectiveAttributes.value.pp) + (+state.combat.strike || 0) + trainedEffects.value.combat.strike,
     parry: attributeBonus('pp', effectiveAttributes.value.pp) + (+state.combat.parry || 0) + trainedEffects.value.combat.parry,
     dodge: attributeBonus('pp', effectiveAttributes.value.pp) + (+state.combat.dodge || 0) + trainedEffects.value.combat.dodge,
-    roll: (+state.combat.roll || 0) + trainedEffects.value.combat.roll,
-    initiative: attributeBonus('ppInitiative', effectiveAttributes.value.pp) + (+state.combat.initiative || 0) + trainedEffects.value.combat.initiative,
-    perception: (+state.combat.perception || 0) + trainedEffects.value.perception,
+    roll: (+state.combat.roll || 0) + trainedEffects.value.combat.roll + (classBonuses.roll || 0),
+    initiative: attributeBonus('ppInitiative', effectiveAttributes.value.pp) + (+state.combat.initiative || 0) + trainedEffects.value.combat.initiative + (classBonuses.initiative || 0),
+    perception: (+state.combat.perception || 0) + trainedEffects.value.perception + (classBonuses.perception || 0),
     psionics: attributeBonus('mePsionics', effectiveAttributes.value.me), insanity: attributeBonus('meInsanity', effectiveAttributes.value.me),
     trust: attributeBonus('ma', effectiveAttributes.value.ma), charm: attributeBonus('pb', effectiveAttributes.value.pb),
-    coma: attributeBonus('peComa', effectiveAttributes.value.pe), poison: attributeBonus('peSave', effectiveAttributes.value.pe), magic: attributeBonus('peSave', effectiveAttributes.value.pe) + (activeOcc.value?.id==='combat-cyborg' ? 3 : 0), possession: activeOcc.value?.id==='combat-cyborg' ? 5 : 0,
+    coma: attributeBonus('peComa', effectiveAttributes.value.pe) + (activeOcc.value?.combatBonuses?.coma || 0), poison: attributeBonus('peSave', effectiveAttributes.value.pe), magic: attributeBonus('peSave', effectiveAttributes.value.pe) + (activeOcc.value?.id==='combat-cyborg' ? 3 : 0), possession: activeOcc.value?.id==='combat-cyborg' ? 5 : 0,
   }
 })
 
@@ -240,14 +243,15 @@ function skillTotalTooltip(id) {
 }
 const categoriesBySkill = Object.fromEntries(skills.map(skill => [skill.id, skillCategories.filter(([, ids]) => ids.includes(skill.id)).map(([name]) => name)]))
 function descriptionFor(id) { return skillDescription(skillsById[id], categoriesBySkill[id]) }
-function relatedInfo(id) { return activeOcc.value?.id==='combat-cyborg' ? combatCyborgRelated(id) : { eligible:false, bonus:0, category:'' } }
+function relatedInfo(id) { return activeOcc.value?.relatedSkillInfo?.(id) || { eligible:false, bonus:0, category:'' } }
+function isOccSkill(id) { return ['occ','occ-choice'].includes(skillRecord(id).trainingType) }
 function isSkillChoiceAvailable(id) {
+  const record = skillRecord(id)
   return Boolean(activeOcc.value) && skillChoiceAvailable({
-    selected: skillRecord(id).selected,
+    selected: record.selected,
+    occSkill: isOccSkill(id),
     relatedEligible: relatedInfo(id).eligible,
-    secondaryEligible: secondaryEligible(id),
     relatedRemaining: relatedRemaining.value,
-    secondaryRemaining: secondaryRemaining.value,
   })
 }
 function isCategoryChoiceAvailable(ids) { return categoryChoiceAvailable(ids, isSkillChoiceAvailable) }
@@ -255,14 +259,13 @@ function trainingOptions(id) {
   const options = [{ value:'', label:'Untrained' }]
   if (relatedInfo(id).eligible) options.push({ value:'related', label:`O.C.C. Related${relatedInfo(id).bonus ? ` (+${relatedInfo(id).bonus}%)` : ''}` })
   if (secondaryEligible(id)) options.push({ value:'secondary', label:'Secondary (+0%)' })
-  options.push({ value:'custom', label:'Other training' })
   return options
 }
 function setTraining(id, type) {
   const record = skillRecord(id)
   if (record.trainingType==='occ' || record.trainingType==='occ-choice') return
-  if (type==='related' && record.trainingType!=='related' && relatedUsed.value>=relatedTotal.value) { alert('No O.C.C. Related Skill selections remain at this level.'); return }
-  if (type==='secondary' && record.trainingType!=='secondary' && secondaryUsed.value>=secondaryTotal.value) { alert('No Secondary Skill selections remain at this level.'); return }
+  if (type==='related' && record.trainingType!=='related' && relatedUsed.value>=relatedTotal.value) { record.selected=Boolean(record.trainingType); alert('No O.C.C. Related Skill selections remain at this level.'); return }
+  if (type==='secondary' && record.trainingType!=='secondary' && secondaryUsed.value>=secondaryTotal.value) { record.selected=Boolean(record.trainingType); alert('No Secondary Skill selections remain at this level.'); return }
   record.trainingType = type; record.selected = Boolean(type)
   if (type==='related') record.occBonus = relatedInfo(id).bonus
   if (type==='secondary') record.occBonus = 0
@@ -272,18 +275,20 @@ function toggleSkill(id) {
   const record = skillRecord(id)
   if (record.trainingType==='occ' || record.trainingType==='occ-choice') { record.selected=true; return }
   if (!record.selected) { record.trainingType=''; record.occBonus=0; return }
-  const preferred = relatedInfo(id).eligible && relatedRemaining.value>0 ? 'related' : secondaryEligible(id) && secondaryRemaining.value>0 ? 'secondary' : 'custom'
+  const preferred = relatedInfo(id).eligible && relatedRemaining.value>0 ? 'related' : 'secondary'
+  record.selected = false
   setTraining(id, preferred)
 }
 function setOccSkill(id, bonus, type='occ') {
   const record=skillRecord(id); record.selected=true; record.trainingType=type; record.occBonus=bonus; record.learnedLevel=1
 }
 function syncOccLanguage(slot, type) {
-  state.languages.spoken = state.languages.spoken.filter(record=>!(record.occId==='combat-cyborg' && record.occSlot===slot))
+  state.languages.spoken = state.languages.spoken.filter(record=>!(record.occId && record.occSlot===slot))
   if (!type) return
+  const rules = activeOcc.value?.languages || { nativeBase:88, nativeBonus:0, otherBonus:0 }
   state.languages.spoken.push(slot==='native'
-    ? { type, occBonus:8, otherBonus:0, learnedLevel:1, useIq:true, baseOverride:88, perLevelOverride:1, occId:'combat-cyborg', occSlot:slot }
-    : { type, occBonus:20, otherBonus:0, learnedLevel:1, useIq:true, occId:'combat-cyborg', occSlot:slot })
+    ? { type, occBonus:rules.nativeBonus, otherBonus:0, learnedLevel:1, useIq:true, baseOverride:rules.nativeBase, perLevelOverride:1, occId:activeOcc.value.id, occSlot:slot }
+    : { type, occBonus:rules.otherBonus, otherBonus:0, learnedLevel:1, useIq:true, occId:activeOcc.value.id, occSlot:slot })
 }
 function syncOccChoice(choice) {
   for (const skill of skills) if (skillRecord(skill.id).occChoice===choice.id) { Object.assign(skillRecord(skill.id), { selected:false,trainingType:'',occBonus:0,occChoice:'' }) }
@@ -295,9 +300,11 @@ function applyOcc() {
   state.languages.spoken = state.languages.spoken.filter(record=>!record.occId)
   state.classChoices={}
   const occ=activeOcc.value; if (!occ) return
-  state.play={ hp:null,sdc:null,isp:null,ppe:null,chi:null,mdc:null,armorMdc:null }
+  state.play={ hp:null,sdc:null,isp:null,ppe:null,chi:null,mdc:null,armorMdc:null,equipment:{} }
   state.identity.occupation=occ.name
-  state.strengthType=occ.defaults.strengthType; state.attributes.ps=occ.defaults.ps; state.attributes.pp=occ.defaults.pp; state.attributes.spd=occ.defaults.spd; state.resources.isp=occ.defaults.isp
+  if (occ.defaults.strengthType) state.strengthType=occ.defaults.strengthType
+  for (const key of ['ps','pp','pe','spd']) if (occ.defaults[key] != null) state.attributes[key]=occ.defaults[key]
+  if (occ.defaults.isp != null) state.resources.isp=occ.defaults.isp
   for (const [id,bonus] of occ.automaticSkills) setOccSkill(id,bonus)
   for (const choice of occ.choices) state.classChoices[choice.id]=choice.count>1 ? Array(choice.count).fill('') : ''
   state.classChoices.nativeLanguage='American'; state.classChoices.otherLanguage=''
@@ -330,7 +337,10 @@ onMounted(() => {
   state.equipment ||= { weapons:[], armor:[], vehicles:[], items:[] }
   for (const section of equipmentSections) { state.equipment[section.id] ||= []; for (const item of state.equipment[section.id]) item.id ||= equipmentId() }
   state.classChoices ||= {}; state.play ||= { hp:null,sdc:null,isp:null,ppe:null,chi:null,mdc:null,armorMdc:null,equipment:{} }; state.play.equipment ||= {}; state.skillBonusRolls ||= {}; state.combat.perception ??= 0
-  skills.forEach(skill=>{ skillRecord(skill.id).trainingType ||= skillRecord(skill.id).selected ? 'custom' : '' })
+  skills.forEach(skill=>{
+    const record = skillRecord(skill.id)
+    if (record.selected && (!record.trainingType || record.trainingType==='custom')) record.trainingType='secondary'
+  })
   skills.forEach(skill => skillRecord(skill.id)); hydrated = true
 })
 watch(state, value => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) }, { deep:true })
@@ -354,11 +364,11 @@ watch(state, value => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.str
     <section v-if="editTab==='class'&&!activeOcc" class="panel empty-section"><h2>O.C.C. / R.C.C.</h2><p>Select a class from the O.C.C. field on the Identity tab to configure class abilities and required choices.</p><button @click="editTab='identity'">Go to Identity</button></section>
     <section v-if="editTab==='class'&&activeOcc" class="panel class-panel"><div class="class-heading"><div><p class="eyebrow">Selected class</p><h2 v-tooltip="activeOcc.description" tabindex="0">{{ activeOcc.name }}</h2><p>{{ activeOcc.description }}</p></div><div class="skill-counters"><output v-tooltip="'O.C.C. Related Skills chosen at the current level. New selections begin at first-level proficiency.'" tabindex="0"><span>O.C.C. Related</span><strong>{{ relatedUsed }} chosen / {{ relatedTotal }} total</strong></output><output v-tooltip="'Secondary Skills chosen at the current level. These receive no O.C.C. bonus, but may receive an I.Q. bonus.'" tabindex="0"><span>Secondary</span><strong>{{ secondaryUsed }} chosen / {{ secondaryTotal }} total</strong></output></div></div>
       <h3>Required O.C.C. choices</h3><div class="class-choice-grid">
-        <label v-tooltip="'Native Language is automatic at 96% before level advancement and applicable I.Q. bonus.'" :class="['required-field',{'needs-choice':!state.classChoices.nativeLanguage}]"><span>Native language</span><select v-model="state.classChoices.nativeLanguage" required @change="syncOccLanguage('native',state.classChoices.nativeLanguage)"><option v-for="language in languages" :key="language">{{ language }}</option></select></label>
-        <label v-tooltip="'Choose one additional spoken language with a +20% O.C.C. bonus.'" :class="['required-field',{'needs-choice':!state.classChoices.otherLanguage}]"><span>Other language (+20%)</span><select v-model="state.classChoices.otherLanguage" required @change="syncOccLanguage('other',state.classChoices.otherLanguage)"><option value="">Choose a language</option><option v-for="language in languages" :key="language">{{ language }}</option></select></label>
+        <label v-tooltip="`Native Language is automatic at ${activeOcc.languages.nativeBase + activeOcc.languages.nativeBonus}% before level advancement and applicable I.Q. bonus.`" :class="['required-field',{'needs-choice':!state.classChoices.nativeLanguage}]"><span>Native language</span><select v-model="state.classChoices.nativeLanguage" required @change="syncOccLanguage('native',state.classChoices.nativeLanguage)"><option v-for="language in languages" :key="language">{{ language }}</option></select></label>
+        <label v-tooltip="`Choose one additional spoken language with a +${activeOcc.languages.otherBonus}% O.C.C. bonus.`" :class="['required-field',{'needs-choice':!state.classChoices.otherLanguage}]"><span>Other language (+{{ activeOcc.languages.otherBonus }}%)</span><select v-model="state.classChoices.otherLanguage" required @change="syncOccLanguage('other',state.classChoices.otherLanguage)"><option value="">Choose a language</option><option v-for="language in languages" :key="language">{{ language }}</option></select></label>
         <template v-for="choice in activeOcc.choices" :key="choice.id"><label v-for="index in choice.count" :key="`${choice.id}-${index}`" v-tooltip="choice.description" :class="['required-field',{'needs-choice':choice.count>1 ? !state.classChoices[choice.id]?.[index-1] : !state.classChoices[choice.id],'invalid-choice':choiceIsDuplicate(choice,index)}]"><span>{{ choice.label }}{{ choice.count>1 ? ` ${index}` : '' }}</span><select v-if="choice.count>1" v-model="state.classChoices[choice.id][index-1]" required @change="syncOccChoice(choice)"><option value="">Choose a skill</option><option v-for="id in choice.options" :key="id" :value="id">{{ skillsById[id].name }}</option></select><select v-else v-model="state.classChoices[choice.id]" required @change="syncOccChoice(choice)"><option value="">Choose a skill</option><option v-for="id in choice.options" :key="id" :value="id">{{ skillsById[id].name }}</option></select></label></template>
       </div>
-      <h3>Other abilities</h3><div class="class-stats"><output v-tooltip="'The unarmored full-conversion cyborg main body has 180 M.D.C.; MI-B2 armor adds 230 M.D.C.'" tabindex="0"><span>Main body / armor / combined M.D.C.</span><strong>{{ activeOcc.mdc.mainBody }} / {{ activeOcc.mdc.armor }} / {{ activeOcc.mdc.total }}</strong></output></div><ul class="ability-list"><li v-for="ability in activeOcc.abilities" :key="ability" v-tooltip="ability" tabindex="0">{{ ability }}</li></ul>
+      <h3>Other abilities</h3><div v-if="activeOccMdc" class="class-stats"><output v-tooltip="'Class-specific natural and armor M.D.C. maximums.'" tabindex="0"><span>Main body / armor / combined M.D.C.</span><strong>{{ activeOccMdc.mainBody }} / {{ activeOccMdc.armor }} / {{ activeOccMdc.total }}</strong></output></div><ul class="ability-list"><li v-for="ability in activeOcc.abilities" :key="ability" v-tooltip="ability" tabindex="0">{{ ability }}</li></ul>
     </section>
 
     <div v-if="editTab==='attributes'" class="sheet-columns">
@@ -396,7 +406,7 @@ watch(state, value => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.str
       <template v-if="trainedEffects.situational.length"><h3>Situational trained-skill bonuses</h3><ul class="situational-list"><li v-for="note in trainedEffects.situational" :key="note">{{ note }}</li></ul></template>
     </section>
 
-    <section v-if="editTab==='skills'" class="panel skills-panel"><div class="skills-heading"><div><h2>Skills</h2><p>Highlighted categories contain skills you can choose with an available O.C.C. Related or Secondary slot. A repeated skill is one shared record: editing it in any category updates every occurrence.</p></div><div v-if="activeOcc" class="skill-counters"><output v-tooltip="'O.C.C. Related Skills chosen / total at this level.'" tabindex="0"><span>O.C.C. Related</span><strong>{{ relatedUsed }} / {{ relatedTotal }} chosen</strong></output><output v-tooltip="'Secondary Skills chosen / total at this level.'" tabindex="0"><span>Secondary</span><strong>{{ secondaryUsed }} / {{ secondaryTotal }} chosen</strong></output></div></div>
+    <section v-if="editTab==='skills'" class="panel skills-panel"><div class="skills-heading"><div><h2>Skills</h2><p>Highlighted categories contain valid skills you can choose with an available O.C.C. Related slot. Any non-O.C.C. skill can be selected as Secondary. A repeated skill is one shared record: editing it in any category updates every occurrence.</p></div><div v-if="activeOcc" class="skill-counters"><output v-tooltip="'O.C.C. Related Skills chosen / total at this level.'" tabindex="0"><span>O.C.C. Related</span><strong>{{ relatedUsed }} / {{ relatedTotal }} chosen</strong></output><output v-tooltip="'Secondary Skills chosen / total at this level.'" tabindex="0"><span>Secondary</span><strong>{{ secondaryUsed }} / {{ secondaryTotal }} chosen</strong></output></div></div>
       <div class="language-groups">
         <section v-for="kind in ['spoken','literacy']" :key="kind" class="language-group">
           <header><div><h3>{{ languageRules[kind].label }}</h3><p>{{ languageRules[kind].description }}</p></div><button type="button" @click="addLanguage(kind)" :aria-label="`Add ${languageRules[kind].label}`">+ Add</button></header>
@@ -411,13 +421,13 @@ watch(state, value => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.str
             <label><span>Learned lvl</span><input v-model.number="record.learnedLevel" type="number" min="1" :max="state.level"></label>
             <output><span>Skill lvl</span><strong>{{ languageLevel(record) }}</strong></output>
             <output><span>Level gain</span><strong>+{{ Math.max(0,languageLevel(record)-1)*(record.perLevelOverride ?? languageRules[kind].perLevel) }}%</strong></output>
-            <button type="button" class="danger remove-language" @click="state.languages[kind].splice(index,1)" aria-label="Remove language">Ã—</button>
+            <button type="button" class="danger remove-language" @click="state.languages[kind].splice(index,1)" aria-label="Remove language">&times;</button>
           </div>
         </section>
       </div>
       <details v-for="([category,ids]) in skillCategories" :key="category" :class="{'has-available-skills':isCategoryChoiceAvailable(ids)}"><summary><span>{{ category }}</span><small>{{ ids.filter(id=>skillRecord(id).selected).length }} selected / {{ ids.length }}</small></summary>
         <div class="skill-table-wrap"><table><thead><tr><th>Use</th><th>Skill</th><th>Training</th><th>Total</th><th>Base</th><th>OCC bonus</th><th>Other</th><th>I.Q.</th><th>Learned lvl</th><th>Current lvl</th><th>Level gain</th></tr></thead><tbody>
-          <tr v-for="id in ids" :key="id" :class="{selected:skillRecord(id).selected,'available-skill':isSkillChoiceAvailable(id)}"><td><input v-model="skillRecord(id).selected" type="checkbox" :disabled="['occ','occ-choice'].includes(skillRecord(id).trainingType)" :aria-label="`Select ${skillsById[id].name}`" @change="toggleSkill(id)"></td><th scope="row" class="skill-name-cell"><span v-tooltip="descriptionFor(id)" class="skill-help" tabindex="0">{{ skillsById[id].name }}</span><small v-if="skillsById[id].note">{{ skillsById[id].note }}</small><small v-if="activeOcc&&relatedInfo(id).eligible">Eligible as O.C.C. Related{{ relatedInfo(id).bonus ? ` at +${relatedInfo(id).bonus}%` : '' }}</small><small v-if="activeOcc&&secondaryEligible(id)">Eligible as Secondary at +0% O.C.C.</small></th><td><span v-if="skillRecord(id).trainingType==='occ'">Automatic O.C.C.</span><span v-else-if="skillRecord(id).trainingType==='occ-choice'">O.C.C. choice</span><select v-else :value="skillRecord(id).trainingType" v-tooltip="'Choose how this skill was learned. This controls slot counters and the class bonus.'" @change="setTraining(id,$event.target.value)"><option v-for="option in trainingOptions(id)" :key="option.value" :value="option.value">{{ option.label }}</option></select></td><td class="total">{{ totalFor(id) == null ? 'Special' : totalFor(id) + '%' }}</td><td>{{ skillsById[id].base == null ? 'â€”' : skillsById[id].base + '%' }}</td><td><input v-model.number="skillRecord(id).occBonus" type="number" :disabled="['occ','occ-choice','related','secondary'].includes(skillRecord(id).trainingType)" aria-label="OCC bonus"></td><td><input v-model.number="skillRecord(id).otherBonus" type="number" aria-label="Other bonus"><small v-if="trainedSkillBonus(id)">+{{ trainedSkillBonus(id) }}% trained skill</small></td><td><label class="iq-toggle"><input v-model="skillRecord(id).useIq" type="checkbox">{{ skillRecord(id).useIq ? `+${iqBonus}%` : 'off' }}</label></td><td><input v-model.number="skillRecord(id).learnedLevel" type="number" min="1" :max="state.level" aria-label="Learned level"></td><td>{{ skillLevel(id) }}</td><td>{{ skillsById[id].base == null ? 'â€”' : '+' + Math.max(0,skillLevel(id)-1)*skillsById[id].perLevel + '%' }}</td></tr>
+          <tr v-for="id in ids" :key="id" :class="{selected:skillRecord(id).selected,'available-skill':isSkillChoiceAvailable(id)}"><td><input v-model="skillRecord(id).selected" type="checkbox" :disabled="['occ','occ-choice'].includes(skillRecord(id).trainingType)" :aria-label="`Select ${skillsById[id].name}`" @change="toggleSkill(id)"></td><th scope="row" class="skill-name-cell"><span v-tooltip="descriptionFor(id)" class="skill-help" tabindex="0">{{ skillsById[id].name }}</span><small v-if="skillsById[id].note">{{ skillsById[id].note }}</small><small v-if="activeOcc&&relatedInfo(id).eligible">Eligible as O.C.C. Related{{ relatedInfo(id).bonus ? ` at +${relatedInfo(id).bonus}%` : '' }}</small><small v-if="activeOcc&&!isOccSkill(id)">Eligible as Secondary at +0% O.C.C.</small></th><td><span v-if="skillRecord(id).trainingType==='occ'">Automatic O.C.C.</span><span v-else-if="skillRecord(id).trainingType==='occ-choice'">O.C.C. choice</span><select v-else :value="skillRecord(id).trainingType" v-tooltip="'Choose how this skill was learned. This controls slot counters and the class bonus.'" @change="setTraining(id,$event.target.value)"><option v-for="option in trainingOptions(id)" :key="option.value" :value="option.value">{{ option.label }}</option></select></td><td class="total">{{ totalFor(id) == null ? 'Special' : totalFor(id) + '%' }}</td><td>{{ skillsById[id].base == null ? 'â€”' : skillsById[id].base + '%' }}</td><td><input v-model.number="skillRecord(id).occBonus" type="number" :disabled="['occ','occ-choice','related','secondary'].includes(skillRecord(id).trainingType)" aria-label="OCC bonus"></td><td><input v-model.number="skillRecord(id).otherBonus" type="number" aria-label="Other bonus"><small v-if="trainedSkillBonus(id)">+{{ trainedSkillBonus(id) }}% trained skill</small></td><td><label class="iq-toggle"><input v-model="skillRecord(id).useIq" type="checkbox">{{ skillRecord(id).useIq ? `+${iqBonus}%` : 'off' }}</label></td><td><input v-model.number="skillRecord(id).learnedLevel" type="number" min="1" :max="state.level" aria-label="Learned level"></td><td>{{ skillLevel(id) }}</td><td>{{ skillsById[id].base == null ? 'â€”' : '+' + Math.max(0,skillLevel(id)-1)*skillsById[id].perLevel + '%' }}</td></tr>
         </tbody></table></div></details>
     </section>
 
@@ -439,7 +449,7 @@ watch(state, value => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.str
 
     <section v-else class="play-sheet">
       <section class="panel play-identity"><div><p class="eyebrow">Play mode</p><h2>{{ state.identity.name || 'Unnamed Character' }}</h2><p>{{ activeOcc?.name || state.identity.occupation || 'No class' }} · Level {{ state.level }} · {{ state.identity.race || 'Race not set' }} · {{ state.identity.alignment || 'Alignment not set' }}</p></div><button class="secondary" @click="mode='edit'">Edit character</button></section>
-      <section class="panel"><h2>Live status</h2><div class="play-trackers"><label v-tooltip="`Current Hit Points. Maximum: ${derived.hp}`"><span>HP current / max</span><span class="tracker-line"><input v-model.number="state.play.hp" type="number"><strong>/ {{ derived.hp }}</strong></span></label><label v-tooltip="`Current Physical S.D.C. Maximum: ${derived.sdc}`"><span>S.D.C. current / max</span><span class="tracker-line"><input v-model.number="state.play.sdc" type="number"><strong>/ {{ derived.sdc }}</strong></span></label><label v-if="activeOcc" v-tooltip="'Current cyborg main-body M.D.C.'"><span>Main-body M.D.C.</span><span class="tracker-line"><input v-model.number="state.play.mdc" type="number"><strong>/ {{ activeOcc.mdc.mainBody }}</strong></span></label><label v-if="activeOcc" v-tooltip="'Current external armor M.D.C.'"><span>Armor M.D.C.</span><span class="tracker-line"><input v-model.number="state.play.armorMdc" type="number"><strong>/ {{ activeOcc.mdc.armor }}</strong></span></label><label v-for="key in ['isp','ppe','chi']" :key="key" v-tooltip="`Current ${key.toUpperCase()}. Maximum: ${state.resources[key]}`"><span>{{ key.toUpperCase() }} current / max</span><span class="tracker-line"><input v-model.number="state.play[key]" type="number"><strong>/ {{ state.resources[key] }}</strong></span></label></div></section>
+      <section class="panel"><h2>Live status</h2><div class="play-trackers"><label v-tooltip="`Current Hit Points. Maximum: ${derived.hp}`"><span>HP current / max</span><span class="tracker-line"><input v-model.number="state.play.hp" type="number"><strong>/ {{ derived.hp }}</strong></span></label><label v-tooltip="`Current Physical S.D.C. Maximum: ${derived.sdc}`"><span>S.D.C. current / max</span><span class="tracker-line"><input v-model.number="state.play.sdc" type="number"><strong>/ {{ derived.sdc }}</strong></span></label><label v-if="activeOccMdc" v-tooltip="'Current class-specific main-body M.D.C.'"><span>Main-body M.D.C.</span><span class="tracker-line"><input v-model.number="state.play.mdc" type="number"><strong>/ {{ activeOccMdc.mainBody }}</strong></span></label><label v-if="activeOccMdc" v-tooltip="'Current class-specific external armor M.D.C.'"><span>Armor M.D.C.</span><span class="tracker-line"><input v-model.number="state.play.armorMdc" type="number"><strong>/ {{ activeOccMdc.armor }}</strong></span></label><label v-for="key in ['isp','ppe','chi']" :key="key" v-tooltip="`Current ${key.toUpperCase()}. Maximum: ${state.resources[key]}`"><span>{{ key.toUpperCase() }} current / max</span><span class="tracker-line"><input v-model.number="state.play[key]" type="number"><strong>/ {{ state.resources[key] }}</strong></span></label></div></section>
       <div class="play-columns"><section class="panel"><h2>Attributes</h2><div class="play-stat-grid"><output v-for="(value,key) in effectiveAttributes" :key="key"><span>{{ key.toUpperCase() }}</span><strong>{{ value }}</strong></output></div></section><section class="panel"><h2>Combat</h2><div class="play-stat-grid"><output><span>Attacks</span><strong>{{ derived.attacks }}</strong></output><output><span>Initiative</span><strong>+{{ derived.initiative }}</strong></output><output><span>Strike</span><strong>+{{ derived.strike }}</strong></output><output><span>Parry</span><strong>+{{ derived.parry }}</strong></output><output><span>Dodge</span><strong>+{{ derived.dodge }}</strong></output><output><span>Roll</span><strong>+{{ derived.roll }}</strong></output><output><span>Perception</span><strong>+{{ derived.perception }}</strong></output><output><span>P.S. damage</span><strong>+{{ derived.damage }}</strong></output></div></section></div>
       <section class="panel"><h2>Movement & saves</h2><div class="play-stat-grid"><output><span>Running</span><strong>{{ derived.move.mph }} mph</strong><small>{{ derived.move.perMelee }} ft/melee</small></output><output><span>Carry / lift</span><strong>{{ derived.weight.carry }} / {{ derived.weight.lift }} lb</strong></output><output><span>Magic</span><strong>+{{ derived.magic }}</strong></output><output><span>Poison</span><strong>+{{ derived.poison }}</strong></output><output><span>Possession</span><strong>+{{ derived.possession }}</strong></output><output><span>Psionics</span><strong>+{{ derived.psionics }}</strong></output><output><span>Insanity</span><strong>+{{ derived.insanity }}</strong></output><output><span>Coma / death</span><strong>+{{ derived.coma }}%</strong></output></div></section>
       <section class="panel play-equipment"><h2>Equipment</h2>

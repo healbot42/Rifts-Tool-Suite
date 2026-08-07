@@ -44,6 +44,7 @@
 .required-field>input,.required-field>select,.required-field>textarea{border-color:rgba(242,140,40,.65)}
 .needs-choice>input,.needs-choice>select,.needs-choice>textarea{border-color:var(--color-accent-bright);background:rgba(242,140,40,.13);box-shadow:0 0 0 2px rgba(242,140,40,.18)}
 .needs-choice>span:first-child{color:var(--color-accent-bright)}
+.character-sheet select option{color:var(--color-text);background:var(--color-input)}
 .skills-panel details.has-available-skills{border-color:var(--color-accent-bright);box-shadow:0 0 0 1px rgba(242,140,40,.2)}
 .skills-panel details.has-available-skills>summary{background:rgba(242,140,40,.18);color:var(--color-accent-bright)}
 .skills-panel tbody tr.available-skill{background:rgba(242,140,40,.12)}
