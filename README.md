@@ -1,6 +1,6 @@
 # Rifts Tool Suite
 
-Rifts Tool Suite v0.0.1 is a dark-mode Vue 3 application containing tools for Rifts gameplay and Techno-Wizard device creation. It is an unofficial fan utility.
+Rifts Tool Suite v0.1.0 is a dark-mode Vue 3 application containing tools for Rifts gameplay and Techno-Wizard device creation. It is an unofficial fan utility.
 
 ## Available pages
 
@@ -27,6 +27,14 @@ Automated tests are centralized under `tests/`. See `tests/README.md` for organi
 The release footer is generated from the version in `package.json`, preventing UI/package version drift.
 
 For future automated maintenance, see `docs/MAINTAINER_AGENT.md`. Repository-specific coding-agent rules are in `AGENTS.md`.
+
+## v0.1.0 release notes
+
+- Adds the auto-saving Character Sheet builder and play-mode reference sheet.
+- Includes the TW Calculator with device calculations, saved-device compatibility, JSON export, and themed or printer-friendly PDF reports.
+- Includes the searchable TW Devices catalog with standardized statistics and optimized device art.
+- Establishes lazy-loaded page modules, centralized tests, package-derived release metadata, and the project maintenance workflow.
+- Keeps the Initiative Tracker available as an isolated placeholder for future development.
 
 ## TW Calculator capabilities
 
