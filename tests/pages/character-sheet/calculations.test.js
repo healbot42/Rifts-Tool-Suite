@@ -4,9 +4,18 @@ import { skillCategories, skillsById } from '../../../src/pages/character-sheet/
 import { languages } from '../../../src/pages/character-sheet/data/languages.js'
 import { skillDescription } from '../../../src/pages/character-sheet/lib/skillDescriptions.js'
 import { skillEffects, skillSynergies } from '../../../src/pages/character-sheet/data/skillEffects.js'
+import { categoryChoiceAvailable, skillChoiceAvailable } from '../../../src/pages/character-sheet/lib/skillAvailability.js'
 import { combatCyborg, combatCyborgRelated, secondaryEligible } from '../../../src/pages/character-sheet/data/occs.js'
 
 describe('character sheet calculations', () => {
+  it('highlights only unselected skills with a remaining eligible choice', () => {
+    expect(skillChoiceAvailable({ selected:false, relatedEligible:true, secondaryEligible:false, relatedRemaining:1, secondaryRemaining:0 })).toBe(true)
+    expect(skillChoiceAvailable({ selected:true, relatedEligible:true, secondaryEligible:true, relatedRemaining:1, secondaryRemaining:1 })).toBe(false)
+    expect(skillChoiceAvailable({ selected:false, relatedEligible:true, secondaryEligible:true, relatedRemaining:0, secondaryRemaining:0 })).toBe(false)
+    expect(categoryChoiceAvailable(['selected', 'available'], id => id === 'available')).toBe(true)
+    expect(categoryChoiceAvailable(['selected'], () => false)).toBe(false)
+  })
+
   it('applies exceptional attribute bonuses from the RUE chart', () => {
     expect(attributeBonus('iq', 16)).toBe(2)
     expect(attributeBonus('pp', 22)).toBe(4)

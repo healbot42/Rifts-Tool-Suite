@@ -44,5 +44,9 @@
 .required-field>input,.required-field>select,.required-field>textarea{border-color:rgba(242,140,40,.65)}
 .needs-choice>input,.needs-choice>select,.needs-choice>textarea{border-color:var(--color-accent-bright);background:rgba(242,140,40,.13);box-shadow:0 0 0 2px rgba(242,140,40,.18)}
 .needs-choice>span:first-child{color:var(--color-accent-bright)}
+.skills-panel details.has-available-skills{border-color:var(--color-accent-bright);box-shadow:0 0 0 1px rgba(242,140,40,.2)}
+.skills-panel details.has-available-skills>summary{background:rgba(242,140,40,.18);color:var(--color-accent-bright)}
+.skills-panel tbody tr.available-skill{background:rgba(242,140,40,.12)}
+.skills-panel tbody tr.available-skill .skill-name-cell{color:var(--color-accent-bright)}
 .invalid-choice>input,.invalid-choice>select,.invalid-choice>textarea{border-color:#ff6973;background:rgba(166,61,70,.18);box-shadow:0 0 0 2px rgba(255,105,115,.2)}
 .invalid-choice>span:first-child,.invalid-choice>span:first-child::after{color:#ff8a92}
