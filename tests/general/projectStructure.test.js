@@ -6,10 +6,10 @@ import packageMetadata from '../../package.json'
 import packageLock from '../../package-lock.json'
 
 const root = new URL('../../', import.meta.url)
-const fromRoot = path => fileURLToPath(new URL(path, root))
+const fromRoot = (path) => fileURLToPath(new URL(path, root))
 
 function filesBelow(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
     return entry.isDirectory() ? filesBelow(path) : [path]
   })
@@ -18,7 +18,9 @@ function filesBelow(directory) {
 describe('project structure', () => {
   it('keeps automated tests in the centralized test directory', () => {
     const sourceFiles = filesBelow(fromRoot('src'))
-    expect(sourceFiles.filter(path => /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path))).toEqual([])
+    expect(
+      sourceFiles.filter((path) => /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path)),
+    ).toEqual([])
   })
 
   it.each([
@@ -26,16 +28,46 @@ describe('project structure', () => {
     ['tw-device-browser', 'TwDeviceBrowserPage.vue'],
     ['initiative-tracker', 'InitiativeTrackerPage.vue'],
     ['character-sheet', 'CharacterSheetPage.vue'],
-  ])('keeps the %s page behind a stable wrapper and components directory', (page, wrapper) => {
-    const pageRoot = `src/pages/${page}/`
-    expect(existsSync(fromRoot(`${pageRoot}index.js`))).toBe(true)
-    expect(existsSync(fromRoot(`${pageRoot}${wrapper}`))).toBe(true)
-    expect(existsSync(fromRoot(`${pageRoot}components`))).toBe(true)
-  })
+  ])(
+    'keeps the %s page behind a stable wrapper and components directory',
+    (page, wrapper) => {
+      const pageRoot = `src/pages/${page}/`
+      expect(existsSync(fromRoot(`${pageRoot}index.js`))).toBe(true)
+      expect(existsSync(fromRoot(`${pageRoot}${wrapper}`))).toBe(true)
+      expect(existsSync(fromRoot(`${pageRoot}components`))).toBe(true)
+    },
+  )
 
   it('keeps package and lockfile release versions synchronized', () => {
     expect(packageLock.version).toBe(packageMetadata.version)
     expect(packageLock.packages[''].version).toBe(packageMetadata.version)
+  })
+
+  it('keeps linting and formatting in the required quality gate', () => {
+    expect(existsSync(fromRoot('eslint.config.js'))).toBe(true)
+    expect(existsSync(fromRoot('.prettierrc.json'))).toBe(true)
+    expect(existsSync(fromRoot('ruff.toml'))).toBe(true)
+    expect(packageMetadata.scripts.lint).toBeTruthy()
+    expect(packageMetadata.scripts['format:check']).toBeTruthy()
+    expect(packageMetadata.scripts.check).toContain('npm run lint')
+    expect(packageMetadata.scripts.check).toContain('npm run format:check')
+  })
+
+  it('keeps canonical game data in the shared data directory', () => {
+    expect(existsSync(fromRoot('src/data/README.md'))).toBe(true)
+    expect(existsSync(fromRoot('src/data/magic/spells.js'))).toBe(true)
+    expect(existsSync(fromRoot('src/data/tw-devices/tw-devices.json'))).toBe(
+      true,
+    )
+    expect(existsSync(fromRoot('src/data/character/occs.js'))).toBe(true)
+
+    const pageDataDirectories = readdirSync(fromRoot('src/pages'), {
+      withFileTypes: true,
+    })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `src/pages/${entry.name}/data`)
+      .filter((path) => existsSync(fromRoot(path)))
+    expect(pageDataDirectories).toEqual([])
   })
 
   it('keeps the project maintenance agent valid and tracked by convention', () => {
@@ -45,5 +77,34 @@ describe('project structure', () => {
     expect(agent).toMatch(/^name\s*=\s*"maintenance_cleaner"/m)
     expect(agent).toMatch(/^description\s*=\s*".+"/m)
     expect(agent).toMatch(/^developer_instructions\s*=\s*"""[\s\S]+"""/m)
+  })
+
+  it('keeps the shared game-data agent valid and tracked by convention', () => {
+    const agentPath = fromRoot('.codex/agents/game-data-maintainer.toml')
+    expect(extname(agentPath)).toBe('.toml')
+    const agent = readFileSync(agentPath, 'utf8')
+    expect(agent).toMatch(/^name\s*=\s*"game_data_maintainer"/m)
+    expect(agent).toMatch(/^description\s*=\s*".+"/m)
+    expect(agent).toMatch(/^developer_instructions\s*=\s*"""[\s\S]+"""/m)
+  })
+
+  it('keeps the item-image generator agent valid and tracked by convention', () => {
+    const agentPath = fromRoot('.codex/agents/item-image-generator.toml')
+    expect(extname(agentPath)).toBe('.toml')
+    const agent = readFileSync(agentPath, 'utf8')
+    expect(agent).toMatch(/^name\s*=\s*"item_image_generator"/m)
+    expect(agent).toContain('crisp blue primary contour and construction lines')
+    expect(agent).toContain('truly transparent background')
+    expect(agent).toContain('display card supplies its exact solid `#040b26`')
+    expect(agent).toContain(
+      'Perform a balanced-detail acceptance check against the TW-45 benchmark',
+    )
+    expect(agent).toContain(
+      'layered blue primary contours plus secondary pale-blue or white structural outlines',
+    )
+    expect(agent).toMatch(/^description\s*=\s*".+"/m)
+    expect(agent).toMatch(/^developer_instructions\s*=\s*"""[\s\S]+"""/m)
+    expect(agent).toContain('Generate every item as a brand-new image')
+    expect(agent).toContain('must not resemble a sword or handheld blade')
   })
 })

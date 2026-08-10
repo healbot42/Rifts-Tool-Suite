@@ -1,19 +1,26 @@
 {
   "name": "rifts-tool-suite",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "format": "prettier --write . && python -m ruff format scripts",
+    "format:check": "prettier --check . && python -m ruff format --check scripts",
+    "lint": "npm run lint:web && npm run lint:python",
+    "lint:fix": "eslint . --fix && python -m ruff check --fix scripts",
+    "lint:python": "python -m ruff check scripts",
+    "lint:web": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:general": "vitest run tests/general",
     "test:tw-calculator": "vitest run tests/pages/tw-calculator",
     "test:tw-devices": "vitest run tests/pages/tw-device-browser",
     "test:character-sheet": "vitest run tests/pages/character-sheet",
+    "test:initiative-tracker": "vitest run tests/pages/initiative-tracker",
     "catalog:stats": "node scripts/extract-device-statistics.mjs",
-    "check": "npm run test && npm run build",
+    "check": "npm run lint && npm run format:check && npm run test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -23,6 +30,13 @@
     "vue": "3.5.40"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.10.0",
+    "globals": "^17.9.0",
+    "prettier": "^3.9.6",
     "vitest": "^4.1.10"
   }
 }

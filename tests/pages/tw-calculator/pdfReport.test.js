@@ -1,43 +1,81 @@
 import { describe, expect, it } from 'vitest'
 import { jsPDF } from 'jspdf'
-import { buildDevicePdf, PDF_COLORS, PRINT_PDF_COLORS } from '../../../src/pages/tw-calculator/lib/pdfReport.js'
+import {
+  buildDevicePdf,
+  PDF_COLORS,
+  PRINT_PDF_COLORS,
+} from '../../../src/pages/tw-calculator/lib/pdfReport.js'
 
 const report = {
   generatedAt: '2026-08-02T12:00:00.000Z',
   state: {
-    deviceName: 'Test Field Projector', form: 'Projector', deviceLevel: 2,
-    singleUse: false, formCost: 500, storagePpe: 0, storagePercentPerPoint: 1,
-    constructionModifiers: [], constructionBonuses: [], constructionModifierPercent: 0,
-    existingTechnology: false, creatorHasMechanicalSkill: false, assistantTimeReduction: 0,
+    deviceName: 'Test Field Projector',
+    form: 'Projector',
+    deviceLevel: 2,
+    singleUse: false,
+    formCost: 500,
+    storagePpe: 0,
+    storagePercentPerPoint: 1,
+    constructionModifiers: [],
+    constructionBonuses: [],
+    constructionModifierPercent: 0,
+    existingTechnology: false,
+    creatorHasMechanicalSkill: false,
+    assistantTimeReduction: 0,
     notes: 'Test notes',
-    chains: [{
-      name: 'Protection', primaryGemCarats: 2, mode: 'standard',
-      spells: [{ name: 'Armor of Ithan', ppe: 10, ppeText: '10', ppeModeId: '', ppeModeInput: null }],
-    }],
+    chains: [
+      {
+        name: 'Protection',
+        primaryGemCarats: 2,
+        mode: 'standard',
+        spells: [
+          {
+            name: 'Armor of Ithan',
+            ppe: 10,
+            ppeText: '10',
+            ppeModeId: '',
+            ppeModeInput: null,
+          },
+        ],
+      },
+    ],
   },
   summary: {
-    ppeConstruction: 100, activationPpe: 5, allFunctionsRequireLeyLine: false,
-    hasLeyLineOnlyFunctions: false, constructionHours: 20, gemsCredits: 1000,
-    constructionCreditsBeforeGems: 2000, constructionCredits: 3000, skillRollModifier: 0,
+    ppeConstruction: 100,
+    activationPpe: 5,
+    allFunctionsRequireLeyLine: false,
+    hasLeyLineOnlyFunctions: false,
+    constructionHours: 20,
+    gemsCredits: 1000,
+    constructionCreditsBeforeGems: 2000,
+    constructionCredits: 3000,
+    skillRollModifier: 0,
   },
   calculations: {
-    basePpeConstruction: 100, storageModifier: 0,
-    selectedConstructionModifierPercent: 0, selectedConstructionBonusPercent: 0,
-    totalSkillRollModifier: 0, modifiedPpeConstruction: 100,
-    constructionTimeAdjustment: 'None', constructionTimeMultiplier: 1,
+    basePpeConstruction: 100,
+    storageModifier: 0,
+    selectedConstructionModifierPercent: 0,
+    selectedConstructionBonusPercent: 0,
+    totalSkillRollModifier: 0,
+    modifiedPpeConstruction: 100,
+    constructionTimeAdjustment: 'None',
+    constructionTimeMultiplier: 1,
   },
   chains: [{ ppeConstruction: 100, activation: 5, gemCost: 1000 }],
 }
 
-const descriptions = { spells: {
-  armor: {
-    name: 'Armor of Ithan',
-    source: { book: 'Rifts Book of Magic', pages: [92] },
-    description: 'Long themed report content. '.repeat(500),
+const descriptions = {
+  spells: {
+    armor: {
+      name: 'Armor of Ithan',
+      source: { book: 'Rifts Book of Magic', pages: [92] },
+      description: 'Long themed report content. '.repeat(500),
+    },
   },
-} }
+}
 
-const rgbCommand = color => `${color.map(channel => Number((channel / 255).toFixed(2))).join(' ')} rg`
+const rgbCommand = (color) =>
+  `${color.map((channel) => Number((channel / 255).toFixed(2))).join(' ')} rg`
 
 describe('themed device PDF', () => {
   it('uses the site palette and paints every continuation page dark', () => {
@@ -60,7 +98,9 @@ describe('themed device PDF', () => {
   })
 
   it('produces a black-and-white printer-friendly report without the dark page fill', () => {
-    const doc = buildDevicePdf(report, jsPDF, descriptions, { printerFriendly: true })
+    const doc = buildDevicePdf(report, jsPDF, descriptions, {
+      printerFriendly: true,
+    })
     const whiteBackground = `${PRINT_PDF_COLORS.background[0] / 255}. g`
     const darkBackground = rgbCommand(PDF_COLORS.background)
     const orangeAccent = rgbCommand(PDF_COLORS.accent)

@@ -1,9 +1,12 @@
 """Create browser-sized WebP copies of generated TW device catalog images."""
 
 from pathlib import Path
+
 from PIL import Image
 
-ASSET_DIR = Path(__file__).resolve().parents[1] / "public" / "assets" / "tw-devices"
+ASSET_DIR = (
+    Path(__file__).resolve().parents[1] / "public" / "assets" / "tw-devices"
+)
 MAX_SIZE = (1280, 720)
 
 converted = 0

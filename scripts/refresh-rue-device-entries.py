@@ -8,7 +8,7 @@ import fitz
 
 ROOT = Path(__file__).resolve().parents[1]
 PDF = ROOT / "Rifts-Main-Ultimate-Edition.pdf"
-CATALOG = ROOT / "src/pages/tw-device-browser/data/tw-devices.json"
+CATALOG = ROOT / "src/data/tw-devices/tw-devices.json"
 
 
 def clean_pdf_text(text: str) -> str:
@@ -27,7 +27,9 @@ def clean_pdf_text(text: str) -> str:
 
 
 document = fitz.open(PDF)
-page_text = clean_pdf_text(document[137].get_text("text"))  # PDF page 138, printed page 137.
+page_text = clean_pdf_text(
+    document[137].get_text("text")
+)  # PDF page 138, printed page 137.
 
 entry_bounds = {
     "flaming-sword-rifts-rpg": ("Flaming Sword:", "Iceblast Shotgun:"),
@@ -39,15 +41,23 @@ updated = []
 for device_id, (start_heading, end_heading) in entry_bounds.items():
     start = page_text.index(start_heading)
     end = page_text.index(end_heading, start)
-    description = page_text[start + len(start_heading):end].strip()
+    description = page_text[start + len(start_heading) : end].strip()
     if device_id == "lightning-rod-rifts-rpg":
         # The embedded searchable font maps the visible capital D to zero here.
-        description = description.replace("106 M.D. per bolt", "1D6 M.D. per bolt")
-    device = next(item for item in catalog["devices"] if item["id"] == device_id)
+        description = description.replace(
+            "106 M.D. per bolt", "1D6 M.D. per bolt"
+        )
+    device = next(
+        item for item in catalog["devices"] if item["id"] == device_id
+    )
     device["description"] = description
     device["source"] = "Rifts Ultimate Edition"
     device["page"] = 137
     updated.append(device["name"])
 
-CATALOG.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-print(f"Refreshed {len(updated)} Ultimate Edition entries: {', '.join(updated)}")
+CATALOG.write_text(
+    json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+)
+print(
+    f"Refreshed {len(updated)} Ultimate Edition entries: {', '.join(updated)}"
+)

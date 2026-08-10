@@ -1,14 +1,19 @@
 # Tool page modules
 
-Each tool is isolated in its own directory. The suite-level navigation stays in `src/App.vue`; tool implementation code stays inside its feature directory.
+Each tool is isolated in its own directory. The suite-level navigation stays in
+`src/App.vue`; tool implementation code stays inside its feature directory.
 
-To integrate generated code for a placeholder tool:
+To integrate generated code for a tool page:
 
 1. Replace the contents of its `components/*App.vue` component.
-2. Put additional components, helpers, and data beneath the same feature directory.
+2. Put page-specific components and helpers beneath the same feature directory.
+   Put canonical reusable game data under `src/data/<domain>/`.
 3. Use relative imports within the feature.
 4. Run `npm test` and `npm run build`.
 
-Place tests in `tests/pages/<page-name>/`, not inside the feature directory. See `tests/README.md` for conventions.
+Place tests in `tests/pages/<page-name>/`, not inside the feature directory. See
+`tests/README.md` for conventions.
 
-The `index.js` and `*Page.vue` files form the stable interface to the suite and generally do not need to change. Placeholder tools are lazy-loaded, keeping their code out of the initial TW Calculator bundle.
+The `index.js` and `*Page.vue` files form the stable interface to the suite and
+generally do not need to change. Tool pages are lazy-loaded, keeping their code
+out of the initial TW Calculator bundle.

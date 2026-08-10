@@ -10,25 +10,29 @@ export const CATEGORY_ORDER = Object.freeze([
   'Vehicle Systems',
 ])
 
-const searchableText = device =>
+const searchableText = (device) =>
   `${device.name} ${device.category} ${device.description}`.toLocaleLowerCase()
 
 export function searchDevices(devices, query = '') {
-  const terms = String(query).trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
+  const terms = String(query)
+    .trim()
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
   if (!terms.length) return devices
-  return devices.filter(device => {
+  return devices.filter((device) => {
     const haystack = searchableText(device)
-    return terms.every(term => haystack.includes(term))
+    return terms.every((term) => haystack.includes(term))
   })
 }
 
 export function groupDevices(devices) {
-  const groups = new Map(CATEGORY_ORDER.map(category => [category, []]))
+  const groups = new Map(CATEGORY_ORDER.map((category) => [category, []]))
   for (const device of devices) {
     if (!groups.has(device.category)) groups.set(device.category, [])
     groups.get(device.category).push(device)
   }
   return [...groups.entries()]
     .map(([category, entries]) => ({ category, devices: entries }))
-    .filter(group => group.devices.length)
+    .filter((group) => group.devices.length)
 }
