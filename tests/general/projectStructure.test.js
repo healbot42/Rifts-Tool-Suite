@@ -93,9 +93,11 @@ describe('project structure', () => {
     expect(extname(agentPath)).toBe('.toml')
     const agent = readFileSync(agentPath, 'utf8')
     expect(agent).toMatch(/^name\s*=\s*"item_image_generator"/m)
-    expect(agent).toContain('crisp blue primary contour and construction lines')
-    expect(agent).toContain('truly transparent background')
-    expect(agent).toContain('display card supplies its exact solid `#040b26`')
+    expect(agent).toContain('opaque solid dark-navy background')
+    expect(agent).toContain(
+      'Never request, generate, key out, or post-process transparency',
+    )
+    expect(agent).toContain('bold saturated blue/orange palette')
     expect(agent).toContain(
       'Perform a balanced-detail acceptance check against the TW-45 benchmark',
     )
@@ -106,5 +108,7 @@ describe('project structure', () => {
     expect(agent).toMatch(/^developer_instructions\s*=\s*"""[\s\S]+"""/m)
     expect(agent).toContain('Generate every item as a brand-new image')
     expect(agent).toContain('must not resemble a sword or handheld blade')
+    expect(agent).toContain("Preserve the item's natural proportions")
+    expect(agent).toContain('Perform a structural-continuity trace')
   })
 })
