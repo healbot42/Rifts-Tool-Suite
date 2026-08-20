@@ -16,7 +16,9 @@ maintenance, dependency updates, and user-directed extraction from local rule
 PDFs. The project-scoped `item_image_generator` agent is defined in
 `.codex/agents/item-image-generator.toml`. Use it for isolated, source-faithful
 item artwork generation, visual validation, optimization, and catalog wiring
-across all item types.
+across all item types. The project-scoped `code_comment_maintainer` agent is
+defined in `.codex/agents/code-comment-maintainer.toml`. Use it to audit and
+improve code comments without changing runtime behavior.
 
 ## Required verification
 
@@ -44,8 +46,14 @@ conventions; update that test deliberately when the architecture changes.
 - `src/style.css`: site-wide dark blue/orange theme and shared UI rules.
 - `src/lib/navigation.js`: valid page IDs and hash parsing.
 - `src/lib/release.js`: derives the site-wide release label from `package.json`.
+- `src/lib/persistence/`: async domain repositories, IndexedDB envelopes, and
+  legacy localStorage migration/fallback. Pages never call storage APIs.
+- `src/lib/localStorage.js`: failure-aware legacy JSON adapter used only by the
+  persistence layer.
 - `src/data/`: suite-wide canonical game data, organized by domain and available
   to any page.
+- `src/data/items/`: reviewed Armory source artifacts and generated runtime
+  catalogs; character equipment uses compatibility adapters over those records.
 - `src/pages/<page-name>/`: isolated feature modules. Other pages should import
   only a feature's `index.js`.
 - `tests/`: centralized test suite organized into `general/` and `pages/`.
@@ -131,13 +139,16 @@ authorization to complete this repository shutdown workflow in order:
 
 1. Run the project-scoped `maintenance_cleaner` agent for an evidence-based
    final audit and safe, behavior-preserving fixes.
-2. Run `npm run check` and `git diff --check`; resolve any failures before
+2. Run the project-scoped `code_comment_maintainer` agent on newly generated or
+   materially changed code. Add durable API/invariant documentation where needed
+   and remove stale comments without narrating obvious code.
+3. Run `npm run check` and `git diff --check`; resolve any failures before
    continuing.
-3. Review the final diff, commit all intended repository changes, and push the
+4. Review the final diff, commit all intended repository changes, and push the
    current branch to its configured GitHub remote.
-4. Confirm the push succeeded and the worktree is clean.
-5. Stop the running local development site.
-6. Close Visual Studio Code last.
+5. Confirm the push succeeded and the worktree is clean.
+6. Stop the running local development site.
+7. Close Visual Studio Code last.
 
 Do not discard unrelated work or bypass failures to reach shutdown. If
 maintenance, verification, commit, or push cannot be completed, report the

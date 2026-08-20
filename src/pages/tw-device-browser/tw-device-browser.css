@@ -29,6 +29,10 @@
   flex-direction: column;
   overflow: hidden;
 }
+.device-index.panel {
+  padding: 0.75rem;
+  box-shadow: none;
+}
 .device-index > label {
   margin-bottom: 0.45rem;
   font-weight: 800;
@@ -51,6 +55,30 @@
 .category-list details {
   border-top: 1px solid var(--color-border);
 }
+.category-list .armory-subgroup {
+  margin-left: 0.4rem;
+  border-top-color: rgba(77, 163, 255, 0.32);
+  border-top-color: color-mix(in srgb, var(--color-blue) 32%, transparent);
+}
+.category-list .armory-subgroup > summary {
+  position: static;
+  margin: 0.18rem 0;
+  padding: 0.62rem 0.65rem;
+  border-left: 2px solid #8bc5ff;
+  border-left-color: color-mix(in srgb, var(--color-blue) 72%, white);
+  border-radius: 0 6px 6px 0;
+  background: rgba(77, 163, 255, 0.1);
+  background: color-mix(in srgb, var(--color-blue) 10%, transparent);
+  color: #a9d4ff;
+  color: color-mix(in srgb, var(--color-blue) 64%, white);
+  font-size: 0.72rem;
+}
+.category-list .armory-subgroup[open] > summary {
+  background: rgba(77, 163, 255, 0.16);
+  background: color-mix(in srgb, var(--color-blue) 16%, transparent);
+  color: #c5e2ff;
+  color: color-mix(in srgb, var(--color-blue) 42%, white);
+}
 .category-list summary {
   position: sticky;
   top: 0;
@@ -67,6 +95,20 @@
 .category-list summary span {
   float: right;
   color: var(--color-text-muted);
+  color: color-mix(in srgb, currentColor 70%, var(--color-text-muted));
+}
+.category-list > details > summary {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 0.6rem;
+  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+}
+.category-list > details[open] > summary {
+  background: var(--color-surface-raised);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
+}
+.direct-category-item {
+  padding-left: 1rem;
 }
 .device-index-button {
   width: 100%;
@@ -92,6 +134,9 @@
   min-width: 0;
   padding: clamp(1rem, 3vw, 2rem);
   scroll-margin-top: 4.5rem;
+}
+.device-detail.panel {
+  box-shadow: none;
 }
 .device-detail-heading {
   margin: 0 0 1.5rem;
@@ -121,28 +166,36 @@
 }
 .game-statistics {
   margin: 0 0 1.75rem;
-  padding: 1rem;
+  padding: 0;
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  background: rgba(23, 38, 74, 0.55);
+  overflow: hidden;
+  background: var(--color-border);
 }
 .game-statistics h3 {
-  margin: 0 0 0.85rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 145, 31, 0.12);
   color: var(--color-accent-bright);
   font-size: 1.15rem;
 }
 .statistics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-border);
   margin: 0;
 }
 .statistic-card {
   min-width: 0;
   padding: 0.75rem;
-  border-left: 3px solid var(--color-blue);
-  border-radius: 7px;
   background: var(--color-input);
+}
+.statistic-card:hover {
+  background: var(--color-surface-raised);
 }
 .statistic-card.wide {
   grid-column: 1 / -1;

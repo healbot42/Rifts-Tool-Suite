@@ -6,7 +6,7 @@ without searching through production code.
 ## Layout
 
 - `general/`: suite-wide behavior such as navigation, release metadata,
-  shared-data integrity, and repository-structure invariants.
+  shared-data integrity, persistence repositories, and structure invariants.
 - `pages/tw-calculator/`: calculator formulas, spell search, and PDF export.
 - `pages/tw-device-browser/`: device catalog, search, statistics, and
   data-integrity checks.
@@ -28,6 +28,7 @@ npm run test:tw-calculator
 npm run test:tw-devices
 npm run test:character-sheet
 npm run test:initiative-tracker
+npm run assets:check
 npm run check
 ```
 
@@ -45,3 +46,7 @@ checks, the complete suite, and the production build.
 wrapper/component convention, synchronized release versions, shared-data layout,
 and required custom-agent fields. Update it deliberately when changing those
 architectural conventions.
+
+`npm run assets:check` verifies that every referenced RUE Armory image exists
+and reports unexpected unused images. Its small explicit allowlist preserves
+known unmatched source art without silently accepting future orphaned assets.

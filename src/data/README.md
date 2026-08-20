@@ -4,11 +4,16 @@ This directory contains canonical game data that may be consumed by any tool
 page. Page-specific UI, calculations, and saved state remain under
 `src/pages/<page-name>/`.
 
-- `magic/`: spells, gems, spell descriptions, and Techno-Wizard construction
-  modifiers.
+- `magic/`: spells, gems, spell descriptions, Techno-Wizard construction
+  modifiers, and the stable-ID invocation view shared by character spellbooks.
 - `tw-devices/`: Techno-Wizard device catalog and canonical statistics order.
 - `character/`: skills, languages, trained-skill effects, and O.C.C./R.C.C.
   definitions.
+- `items/`: source-backed Armory equipment with direct functional category and
+  subcategory fields; reviewed inputs are separate from generated runtime JSON,
+  and sourcebooks remain provenance rather than UI parents. `items/armory.js` is
+  the shared merged runtime view used by both the Armory page and character
+  equipment picker.
 
 Character classes may declare zero or more `specializations` in
 `character/occs.js`. Specializations are named, stable-ID bundles of automatic
@@ -31,6 +36,8 @@ effect-based categories.
 
 `magic/spell-descriptions.json` is intentionally loaded dynamically by the PDF
 exporter so its full text does not increase the initial calculator bundle.
+`magic/invocations.js` joins those descriptions to canonical spell level and
+P.P.E. data for lazy-loaded consumers that need complete invocation rules.
 
 When data changes, update every consumer, extraction script, integrity test, and
 relevant document together. Preserve source citations and stable IDs. Local rule

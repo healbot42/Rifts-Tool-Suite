@@ -305,11 +305,9 @@ describe('character sheet calculations', () => {
     expect(crazy.relatedAtLevel(12)).toBe(15)
     expect(crazy.secondaryAtLevel(1)).toBe(6)
     expect(crazy.secondaryAtLevel(12)).toBe(10)
-    expect(crazy.defaults).toMatchObject({
-      ps: 19,
-      pp: 17,
-      strengthType: 'augmented',
-    })
+    expect(crazy.defaults).toMatchObject({ strengthType: 'augmented' })
+    expect(crazy.defaults).not.toHaveProperty('ps')
+    expect(crazy.defaults).not.toHaveProperty('pp')
     for (const [id] of crazy.automaticSkills)
       expect(skillsById[id], `missing automatic skill ${id}`).toBeDefined()
     for (const choice of crazy.choices)
@@ -351,6 +349,9 @@ describe('character sheet calculations', () => {
         nativeBase: expect.any(Number),
         nativeBonus: expect.any(Number),
         otherBonus: expect.any(Number),
+        otherCount: expect.any(Number),
+        literacyOtherCount: expect.any(Number),
+        literacyOtherBonus: expect.any(Number),
       })
       expect(Array.isArray(occ.automaticSkills)).toBe(true)
       expect(Array.isArray(occ.choices)).toBe(true)
@@ -459,6 +460,14 @@ describe('character sheet calculations', () => {
       'juicer',
       'merc-soldier',
       'robot-pilot',
+      'body-fixer',
+      'city-rat',
+      'cyber-doc',
+      'operator',
+      'rogue-scholar',
+      'rogue-scientist',
+      'vagabond',
+      'wilderness-scout',
     ])
     for (const occ of occs.slice(2)) {
       expect(occ.source).toMatchObject({
@@ -476,6 +485,67 @@ describe('character sheet calculations', () => {
           skillsById[id],
           `${occ.id}: missing automatic skill ${id}`,
         ).toBeDefined()
+      for (const requiredChoice of occ.choices)
+        for (const id of requiredChoice.options)
+          expect(
+            skillsById[id],
+            `${occ.id}: missing choice ${id}`,
+          ).toBeDefined()
+    }
+  })
+
+  it('models the first five Adventurers & Scholars classes in source order', () => {
+    const adventurers = occs.slice(8, 13)
+    expect(adventurers.map((occ) => [occ.id, occ.source.pages])).toEqual([
+      ['body-fixer', '86-88'],
+      ['city-rat', '88-89'],
+      ['cyber-doc', '89-91'],
+      ['operator', '91-93'],
+      ['rogue-scholar', '93-95'],
+    ])
+    for (const occ of adventurers) {
+      expect(occ.attributeBonusSource).toMatchObject({
+        book: 'Rifts Ultimate Edition',
+        pages: expect.any(String),
+      })
+      expect(occ.abilities.length).toBeGreaterThan(0)
+      expect(occ.relatedAtLevel(15)).toBeGreaterThan(occ.relatedAtLevel(1))
+      for (const [id] of occ.automaticSkills)
+        expect(skillsById[id], `${occ.id}: missing ${id}`).toBeDefined()
+      for (const requiredChoice of occ.choices)
+        for (const id of requiredChoice.options)
+          expect(
+            skillsById[id],
+            `${occ.id}: missing choice ${id}`,
+          ).toBeDefined()
+    }
+  })
+
+  it('completes the Adventurers & Scholars section through its source boundary', () => {
+    const remaining = occs.slice(-3)
+    expect(remaining.map((occ) => [occ.id, occ.source.pages])).toEqual([
+      ['rogue-scientist', '95-97'],
+      ['vagabond', '97-99'],
+      ['wilderness-scout', '99-100'],
+    ])
+    expect(remaining[0].relatedAtLevel(1)).toBe(15)
+    expect(remaining[1].secondaryAtLevel(13)).toBe(14)
+    expect(remaining[2].attributeRequirements).toEqual([
+      { attribute: 'iq', minimum: 8 },
+      { attribute: 'pe', minimum: 12 },
+    ])
+    expect(remaining.map((occ) => occ.languages.otherCount)).toEqual([3, 2, 2])
+    expect(remaining[0].languages).toMatchObject({
+      literacyOtherCount: 2,
+      literacyOtherBonus: 35,
+    })
+    for (const occ of remaining) {
+      expect(occ.attributeBonusSource).toMatchObject({
+        book: 'Rifts Ultimate Edition',
+        pages: expect.any(String),
+      })
+      for (const [id] of occ.automaticSkills)
+        expect(skillsById[id], `${occ.id}: missing ${id}`).toBeDefined()
       for (const requiredChoice of occ.choices)
         for (const id of requiredChoice.options)
           expect(

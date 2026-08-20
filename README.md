@@ -10,9 +10,9 @@ utility.
   construction P.P.E., activation P.P.E., construction time, skill modifiers,
   gem requirements, and credit totals, and exports themed or printer-friendly
   PDF reports.
-- **TW Devices:** searches a categorized catalog of devices from the supplied
-  sourcebooks. Each entry includes a themed line-art image, standardized
-  quick-reference statistics, and the cleaned sourcebook entry.
+- **Armory:** searches Rifts Ultimate Edition equipment and the categorized
+  Techno-Wizard device catalog. Entries include source provenance, available
+  quick-reference statistics, and existing themed line-art assets.
 - **Initiative Tracker:** manages combatant initiative, ties, action passes,
   manual results, and round progression.
 - **Character Sheet:** builds and auto-saves characters, applies class and
@@ -40,6 +40,10 @@ npm run preview
 Automated tests are centralized under `tests/`. See `tests/README.md` for
 organization and maintenance instructions.
 
+Offline saves use IndexedDB-first domain repositories with non-destructive
+legacy localStorage migration and rollback mirroring. See `docs/PERSISTENCE.md`
+for the backend contract and future remote-adapter seam.
+
 Authored JavaScript, Vue, CSS, Markdown, and Python use an 80-column target.
 ESLint and Ruff catch code problems; Prettier and Ruff apply consistent wrapping
 and formatting. Canonical sourcebook JSON with indivisible prose strings is
@@ -51,7 +55,8 @@ UI/package version drift.
 For future automated maintenance, see `docs/MAINTAINER_AGENT.md`. For shared
 catalogs and rule-PDF extraction, see `docs/GAME_DATA_AGENT.md`. For isolated,
 source-faithful catalog artwork across all item types, see
-`docs/ITEM_IMAGE_AGENT.md`. Repository-specific coding-agent rules are in
+`docs/ITEM_IMAGE_AGENT.md`. For behavior-preserving code-comment audits, see
+`docs/CODE_COMMENT_AGENT.md`. Repository-specific coding-agent rules are in
 `AGENTS.md`.
 
 ## v0.2.0 release notes

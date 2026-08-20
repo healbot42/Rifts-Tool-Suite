@@ -12,6 +12,8 @@ This directory is the complete Techno-Wizard Calculator feature module.
   lazily for PDF reports
 - `lib/pdfReport.js`: device PDF generation
 - `lib/`: calculation, search, export, and runtime-compatibility helpers
+- `../../lib/persistence/`: async saved-device repository with IndexedDB-first
+  persistence and legacy localStorage compatibility
 - `index.js`: stable lazy-loading entry point used by the suite
 
 Code outside this directory should import only the feature's `index.js`. The

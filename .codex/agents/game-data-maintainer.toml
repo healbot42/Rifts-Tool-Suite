@@ -31,6 +31,8 @@ For PDF-driven additions:
 3. Normalize records to the existing schema and validate unique IDs, cross-references, required fields, ordering, costs, and units.
 4. Run the relevant refresh script when one exists. For TW devices, run node scripts/extract-device-statistics.mjs after source-description changes.
 5. Update every runtime consumer, script path, test fixture/integrity assertion, and document affected by the data change.
+6. Apply deterministic, reusable OCR cleanup in the domain generator: normalize whitespace and punctuation, remove soft hyphens, safely join line-break hyphenation, and repair verified intraword, dice, numeral, and unit artifacts. Do not use unsafe global word joins.
+7. Audit every generated description and statistic for scan artifacts and excerpt-boundary correctness. Use explicit source-locator corrections for ambiguous or repeated headings, and add regression tests for every newly discovered artifact family.
 
 Working rules:
 - Prefer focused, reviewable edits and do not add or upgrade dependencies unless explicitly required.

@@ -8,6 +8,8 @@ import {
   normalizeCatalogSelection,
   validateCatalogOptions,
 } from '../lib/catalogPicker.js'
+import { groupArmoryCatalog } from '../lib/armoryCatalog.js'
+import { resolveCatalogAssetUrl } from '../lib/catalogAssets.js'
 const props = defineProps({
   open: Boolean,
   entries: { type: Array, default: () => [] },
@@ -22,9 +24,7 @@ const selectedId = ref('')
 const filterValues = ref({})
 const values = ref({})
 let restore = null
-const categories = computed(() => [
-  ...new Set(props.entries.map((e) => e.category)),
-])
+let previousBodyOverflow = null
 const results = computed(() =>
   catalogFilter(
     catalogSearch(props.entries, search.value, props.searchFields),
@@ -35,27 +35,7 @@ const filtersActive = computed(
   () =>
     Boolean(search.value) || Object.values(filterValues.value).some(Boolean),
 )
-const categoryGroups = computed(() =>
-  categories.value
-    .map((name) => {
-      const entries = results.value.filter((entry) => entry.category === name)
-      const subcategoryNames = [
-        ...new Set(entries.map((entry) => entry.subcategory).filter(Boolean)),
-      ]
-      return {
-        name,
-        entries: entries.filter((entry) => !entry.subcategory),
-        subcategories: subcategoryNames.map((subcategoryName) => ({
-          name: subcategoryName,
-          entries: entries.filter(
-            (entry) => entry.subcategory === subcategoryName,
-          ),
-        })),
-        count: entries.length,
-      }
-    })
-    .filter((group) => group.count),
-)
+const categoryGroups = computed(() => groupArmoryCatalog(results.value))
 const selected = computed(() =>
   props.entries.find((e) => e.id === selectedId.value),
 )
@@ -74,6 +54,11 @@ function choose(entry) {
 }
 function close() {
   emit('close')
+}
+function restoreDocumentScroll() {
+  if (previousBodyOverflow == null) return
+  document.body.style.overflow = previousBodyOverflow
+  previousBodyOverflow = null
 }
 function confirm() {
   if (selected.value && !invalid.value.length)
@@ -107,14 +92,28 @@ watch(
   async (open) => {
     if (open) {
       restore = document.activeElement
+      previousBodyOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
       clear()
       if (props.entries[0]) choose(props.entries[0])
       await nextTick()
       dialog.value?.querySelector('input,button')?.focus()
-    } else restore?.focus()
+    } else {
+      restoreDocumentScroll()
+      restore?.focus()
+    }
   },
 )
-onBeforeUnmount(() => restore?.focus())
+watch(results, (entries) => {
+  if (!props.open || entries.some((entry) => entry.id === selectedId.value))
+    return
+  if (entries[0]) choose(entries[0])
+  else selectedId.value = ''
+})
+onBeforeUnmount(() => {
+  restoreDocumentScroll()
+  restore?.focus()
+})
 </script>
 <template>
   <Teleport to="body"
@@ -182,20 +181,20 @@ onBeforeUnmount(() => restore?.focus())
               </p>
               <details
                 v-for="group in categoryGroups"
-                :key="group.name"
+                :key="group.category"
                 :open="filtersActive"
               >
                 <summary>
-                  <span>{{ group.name }}</span>
+                  <span>{{ group.category }}</span>
                   <span>{{ group.count }}</span>
                 </summary>
                 <details
                   v-for="subgroup in group.subcategories"
-                  :key="subgroup.name"
+                  :key="subgroup.subcategory"
                   :open="filtersActive"
                 >
                   <summary>
-                    <span>{{ subgroup.name }}</span>
+                    <span>{{ subgroup.subcategory }}</span>
                     <span>{{ subgroup.entries.length }}</span>
                   </summary>
                   <div class="catalog-picker-tree-entries">
@@ -230,6 +229,12 @@ onBeforeUnmount(() => restore?.focus())
             v-if="selected"
             class="catalog-picker-selection"
           >
+            <img
+              v-if="selected.image"
+              class="catalog-picker-image"
+              :src="resolveCatalogAssetUrl(selected.image)"
+              :alt="selected.name"
+            />
             <CatalogEntryDetails :entry="selected" />
             <section
               v-if="selected.options?.length"
@@ -311,19 +316,22 @@ onBeforeUnmount(() => restore?.focus())
   inset: 0;
   z-index: 1000;
   display: grid;
-  place-items: center;
-  padding: 1rem;
+  place-items: stretch end;
+  padding: 0;
   background: #000b;
 }
 .catalog-picker {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(90rem, 100%);
-  height: min(90vh, 58rem);
-  padding: 1rem;
+  width: min(90rem, calc(100% - 3rem));
+  height: 100vh;
+  height: 100dvh;
+  padding: 1rem clamp(1rem, 2vw, 1.5rem);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 16px 0 0 16px;
   background: #07122d;
+  box-shadow: -1.5rem 0 4rem rgba(0, 0, 0, 0.45);
+  animation: catalog-sheet-enter 160ms ease-out;
 }
 .catalog-picker > header,
 .catalog-picker > footer {
@@ -452,6 +460,16 @@ onBeforeUnmount(() => restore?.focus())
   background: var(--color-surface);
   overflow-y: auto;
 }
+.catalog-picker-image {
+  display: block;
+  width: min(100%, 42rem);
+  max-height: 20rem;
+  margin: 0 auto 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  object-fit: contain;
+  background: var(--color-input);
+}
 .catalog-picker-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
@@ -472,10 +490,15 @@ onBeforeUnmount(() => restore?.focus())
   padding: 1rem 0.25rem;
 }
 @media (max-width: 650px) {
+  .catalog-picker-backdrop {
+    place-items: end stretch;
+    padding-top: 3rem;
+  }
   .catalog-picker {
     width: 100%;
-    height: 100vh;
-    border-radius: 0;
+    height: calc(100vh - 3rem);
+    height: calc(100dvh - 3rem);
+    border-radius: 16px 16px 0 0;
   }
   .catalog-picker-body {
     grid-template-columns: 1fr;
@@ -486,6 +509,25 @@ onBeforeUnmount(() => restore?.focus())
   }
   .catalog-picker-selection {
     overflow: visible;
+  }
+}
+@keyframes catalog-sheet-enter {
+  from {
+    opacity: 0.65;
+    transform: translateX(1.5rem);
+  }
+}
+@media (max-width: 650px) {
+  @keyframes catalog-sheet-enter {
+    from {
+      opacity: 0.65;
+      transform: translateY(1.5rem);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalog-picker {
+    animation: none;
   }
 }
 </style>

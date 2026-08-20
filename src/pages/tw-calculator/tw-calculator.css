@@ -133,6 +133,9 @@ button {
   position: relative;
   overflow: visible;
 }
+.chain.panel {
+  box-shadow: none;
+}
 .chain-head {
   display: flex;
   gap: 1rem;
@@ -151,14 +154,26 @@ button {
 }
 .spell-list {
   display: grid;
-  gap: 0.55rem;
+  gap: 1px;
+  overflow: visible;
   margin: 1rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-border);
 }
 .spell-row {
   display: grid;
   grid-template-columns: 90px 1fr 170px 42px;
   gap: 0.55rem;
   align-items: end;
+  padding: 0.65rem;
+  background: var(--color-input);
+}
+.spell-row:first-child {
+  border-radius: 9px 9px 0 0;
+}
+.spell-row:last-child {
+  border-radius: 0 0 9px 9px;
 }
 .badge {
   align-self: center;
@@ -220,25 +235,28 @@ button {
   position: sticky;
   top: 1rem;
   display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: 1px;
+  padding: 0;
   border: 1px solid var(--color-border-strong);
-  border-radius: 16px;
-  background: rgba(10, 17, 37, 0.97);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-border);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
 }
 .results-sidebar h2 {
-  margin: 0 0 0.2rem;
+  margin: 0;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 145, 31, 0.12);
   color: var(--color-accent-bright);
   font-size: 1.15rem;
 }
 .stat {
   display: grid;
   gap: 0.35rem;
-  padding: 0.9rem;
-  border-radius: 12px;
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
+  padding: 0.75rem 1rem;
+  border-radius: 0;
+  background: var(--color-input);
+  color: var(--color-text);
 }
 .stat span {
   font-size: 0.72rem;
@@ -249,15 +267,19 @@ button {
   overflow-wrap: anywhere;
   font-size: 1.18rem;
 }
+.stat:not(.skill-stat) {
+  box-shadow: inset 3px 0 var(--color-accent);
+}
 .stat small {
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.25;
 }
 .skill-stat {
-  background: var(--color-surface-raised);
+  background: var(--color-input);
   color: var(--color-text);
-  border: 1px solid var(--color-border-strong);
+  border: 0;
+  box-shadow: inset 3px 0 var(--color-blue);
 }
 .skill-stat .positive {
   color: var(--color-positive);
@@ -370,6 +392,9 @@ footer {
   .panel,
   .results-sidebar-inner {
     box-shadow: none;
+  }
+  .results-sidebar h2 {
+    border-bottom: 1px solid var(--color-border);
   }
   .hero {
     display: grid;

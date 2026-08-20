@@ -26,3 +26,12 @@ The agent preserves existing data shapes where possible. It updates consumers
 and compatibility handling when a schema or stable ID must change, runs
 domain-specific refresh scripts, then finishes with `npm run check` and
 `git diff --check`.
+
+PDF imports must include deterministic cleanup in the relevant generator rather
+than one-off edits to generated JSON. Cleanup covers whitespace and punctuation,
+soft hyphens and safe line-break joins, verified broken intraword spacing, and
+common OCR damage to dice, numerals, and units. It must not globally join short
+words or otherwise guess at prose. Every imported description and statistic is
+audited for visible scan artifacts and correct excerpt boundaries; repeated or
+ambiguous headings use explicit source-locator corrections. Shared-data tests
+must reject each known artifact family while retaining legitimate prose spacing.

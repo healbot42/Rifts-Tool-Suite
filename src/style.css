@@ -18,6 +18,8 @@
   --color-blue: #4da3ff;
   --color-positive: #66d6a0;
   --color-negative: #ff7f88;
+  --surface-divider: rgba(79, 111, 165, 0.55);
+  --surface-hover: rgba(77, 163, 255, 0.08);
 }
 * {
   box-sizing: border-box;
@@ -26,6 +28,12 @@ body {
   margin: 0;
   min-width: 320px;
   background: radial-gradient(circle at top, #182957, var(--color-bg) 40rem);
+}
+
+.storage-status {
+  margin: 0.75rem 0;
+  border-color: #e7a33e;
+  color: #ffd89b;
 }
 button,
 input,
@@ -52,9 +60,9 @@ p {
 .panel {
   background: rgba(16, 26, 51, 0.95);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 1rem;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 label {
   color: #cad6e9;
@@ -83,6 +91,12 @@ button {
 }
 button:hover:not(:disabled) {
   background: var(--color-accent-bright);
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-accent-bright);
+  outline-offset: 2px;
 }
 button.secondary {
   background: #263b67;
@@ -113,7 +127,9 @@ button:disabled {
   min-height: 3.25rem;
   margin: 0 auto;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0;
   overflow-x: auto;
 }
 .app-page-link {
@@ -121,8 +137,10 @@ button:disabled {
   flex: 0 0 auto;
   align-items: center;
   gap: 0.55rem;
-  padding: 0 0.9rem;
-  border-bottom: 2px solid transparent;
+  min-height: 2.55rem;
+  padding: 0 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
   color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 800;
@@ -133,7 +151,7 @@ button:disabled {
   background: rgba(77, 163, 255, 0.08);
 }
 .app-page-link.active {
-  border-bottom-color: var(--color-accent);
+  border-color: rgba(242, 140, 40, 0.42);
   color: var(--color-text);
   background: rgba(242, 140, 40, 0.11);
 }
@@ -181,6 +199,18 @@ button:disabled {
   font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-align: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  .app-page-link,
+  input,
+  select,
+  textarea {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
 }
 @media (max-width: 540px) {
   .app-ribbon-inner,

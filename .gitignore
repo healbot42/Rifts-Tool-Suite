@@ -44,6 +44,7 @@ Desktop.ini
 # Temporary extraction and working files
 tmp/
 output/
+tmp-rue-equipment.txt
 *.tmp
 *.temp
 *.bak

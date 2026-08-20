@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { resolveDeviceImageUrl } from '../lib/deviceAssets.js'
 
 const props = defineProps({ device: { type: Object, required: true } })
@@ -8,6 +8,8 @@ const expanded = ref(false)
 const imageButton = ref(null)
 const closeButton = ref(null)
 const imageUrl = computed(() => resolveDeviceImageUrl(props.device.image))
+let previousBodyOverflow = ''
+let bodyScrollLocked = false
 
 function openImage() {
   expanded.value = true
@@ -16,8 +18,39 @@ function openImage() {
 
 function closeImage() {
   expanded.value = false
-  nextTick(() => imageButton.value?.focus())
+  nextTick(() => {
+    if (imageButton.value?.isConnected) imageButton.value.focus()
+  })
 }
+
+function handleDialogKeydown(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeImage()
+    return
+  }
+  if (event.key !== 'Tab') return
+  event.preventDefault()
+  closeButton.value?.focus()
+}
+
+function restoreBodyScroll() {
+  if (!bodyScrollLocked) return
+  document.body.style.overflow = previousBodyOverflow
+  bodyScrollLocked = false
+}
+
+watch(expanded, (isExpanded) => {
+  if (isExpanded) {
+    previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    bodyScrollLocked = true
+  } else {
+    restoreBodyScroll()
+  }
+})
+
+onBeforeUnmount(restoreBodyScroll)
 </script>
 
 <template>
@@ -33,14 +66,14 @@ function closeImage() {
       <img
         class="device-image-art"
         :src="imageUrl"
-        :alt="`Original minimal line-art concept of ${device.name}`"
+        :alt="`Line-art concept of ${device.name}`"
         width="1280"
         height="720"
         decoding="async"
       />
     </button>
     <figcaption>
-      Click image to enlarge &middot; original AI-generated concept art
+      Click image to enlarge &middot; AI-generated concept art
     </figcaption>
   </figure>
 
@@ -48,14 +81,15 @@ function closeImage() {
     <div
       v-if="expanded"
       class="device-image-lightbox"
-      @click="closeImage"
-      @keydown.esc="closeImage"
+      @click.self="closeImage"
+      @keydown="handleDialogKeydown"
     >
       <div
         class="device-image-dialog"
         role="dialog"
         aria-modal="true"
         :aria-label="`Larger image of ${device.name}`"
+        @click.stop
       >
         <button
           ref="closeButton"

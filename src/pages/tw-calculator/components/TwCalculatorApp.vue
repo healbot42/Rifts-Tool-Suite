@@ -28,6 +28,20 @@ import {
   findMatchingSpells,
 } from '../lib/spellSearch.js'
 import { createRuntimeId } from '../lib/runtimeId.js'
+import {
+  persistenceErrorMessage,
+  repositories,
+} from '../../../lib/persistence/index.js'
+
+const storageStatus = ref('')
+
+function reportStorageFailure(result) {
+  console.error('TW Calculator local storage failed', result.error)
+  storageStatus.value = persistenceErrorMessage(
+    result.error,
+    'The Techno-Wizard device',
+  )
+}
 
 const makeSpell = (primary = false) => ({
   id: createRuntimeId(),
@@ -80,25 +94,20 @@ const state = reactive({
   chains: [makeChain(1)],
 })
 
-const saved = localStorage.getItem('rifts-tw-device')
-if (saved) {
-  try {
-    Object.assign(state, JSON.parse(saved))
-  } catch {
-    /* ignore malformed saves */
-  }
-}
 let saveHandle
 let saveUsesIdleCallback = false
 let suppressSave = false
-function persistState() {
-  if (!suppressSave)
-    localStorage.setItem(
-      'rifts-tw-device',
-      JSON.stringify(state, (key, value) =>
-        key === 'searchOpen' ? undefined : value,
-      ),
-    )
+let hydrated = false
+async function persistState() {
+  if (!hydrated) {
+    saveHandle = undefined
+    return
+  }
+  if (!suppressSave) {
+    const result = await repositories.twDevice.save(state)
+    if (!result.ok || result.warning)
+      reportStorageFailure({ error: result.error || result.warning })
+  }
   saveHandle = undefined
 }
 function cancelScheduledSave() {
@@ -108,6 +117,7 @@ function cancelScheduledSave() {
   saveHandle = undefined
 }
 function scheduleSave() {
+  if (!hydrated) return
   cancelScheduledSave()
   if ('requestIdleCallback' in window) {
     saveUsesIdleCallback = true
@@ -534,7 +544,12 @@ const priceChartSection = ref(null)
 const chartVisible = ref(false)
 let chartObserver
 
-onMounted(() => {
+onMounted(async () => {
+  const saved = await repositories.twDevice.load()
+  if (saved.ok && saved.value) Object.assign(state, saved.value)
+  else if (!saved.ok || saved.warning)
+    reportStorageFailure({ error: saved.error || saved.warning })
+  hydrated = true
   if ('IntersectionObserver' in window) {
     chartObserver = new IntersectionObserver(
       (entries) => {
@@ -570,12 +585,18 @@ function removeSpell(chain, id) {
   if (chain.spells.length > 1)
     chain.spells = chain.spells.filter((spell) => spell.id !== id)
 }
-function reset() {
+async function reset() {
+  if (!confirm('Clear the saved Techno-Wizard device?')) return
   suppressSave = true
   cancelScheduledSave()
   window.removeEventListener('pagehide', persistState)
-  localStorage.removeItem('rifts-tw-device')
-  location.reload()
+  const result = await repositories.twDevice.remove()
+  if (result.ok) location.reload()
+  else {
+    suppressSave = false
+    window.addEventListener('pagehide', persistState)
+    reportStorageFailure(result)
+  }
 }
 function exportJson() {
   const blob = new Blob(
@@ -686,6 +707,14 @@ async function exportPdf(printerFriendly = false) {
         </p>
       </div>
     </header>
+
+    <p
+      v-if="storageStatus"
+      class="storage-status panel"
+      role="alert"
+    >
+      {{ storageStatus }}
+    </p>
 
     <div class="app-layout">
       <div class="workspace">

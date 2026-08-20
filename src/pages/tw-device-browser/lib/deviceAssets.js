@@ -1,7 +1,4 @@
-export function resolveDeviceImageUrl(
-  imagePath,
-  baseUrl = import.meta.env.BASE_URL,
-) {
-  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
-  return `${normalizedBase}${imagePath.replace(/^\/+/, '')}`
-}
+import { resolveCatalogAssetUrl } from '../../../lib/catalogAssets.js'
+
+// Compatibility export for existing Armory consumers and saved imports.
+export const resolveDeviceImageUrl = resolveCatalogAssetUrl

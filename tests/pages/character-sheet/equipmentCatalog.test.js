@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyEquipmentCatalogSelection,
+  armoryDefaultsForCatalogSelection,
   characterEquipmentCatalog,
 } from '../../../src/data/character/equipmentCatalog.js'
 import { rangedWeapons } from '../../../src/data/character/rangedWeapons.js'
 import { tools } from '../../../src/data/character/tools.js'
+import rueCatalog from '../../../src/data/items/rifts-ultimate-edition.json'
 
 const blank = () => ({ weapons: [], armor: [], vehicles: [], items: [] })
 
@@ -36,19 +38,44 @@ describe('character equipment ranged weapon catalog', () => {
     ).toBe(true)
   })
 
-  it('does not retain grouped starting equipment or owned assets', () => {
-    expect(characterEquipmentCatalog).toHaveLength(15)
+  it('uses the complete Armory without adding owned-asset pseudo-records', () => {
+    expect(characterEquipmentCatalog).toHaveLength(323)
     expect(
       characterEquipmentCatalog
-        .filter((entry) => entry.category === 'Weapons')
+        .filter((entry) => entry.category === 'Ranged Weapons')
         .every(
           (entry) =>
-            entry.metadata.kind === 'weapons' && entry.statistics.length >= 6,
+            entry.metadata.kind === 'weapons' && entry.statistics.length > 0,
         ),
     ).toBe(true)
     expect(
       characterEquipmentCatalog.some((entry) => entry.id.startsWith('asset:')),
     ).toBe(false)
+  })
+
+  it('derives shared RUE entries from canonical Armory records with legacy IDs', () => {
+    const armoryById = new Map(rueCatalog.items.map((item) => [item.id, item]))
+    const adapted = [...rangedWeapons, ...tools].filter(
+      (entry) => entry.compatibility?.armoryId,
+    )
+    expect(adapted).toHaveLength(14)
+    expect(
+      new Set(adapted.map((entry) => entry.compatibility.armoryId)).size,
+    ).toBe(14)
+    for (const entry of adapted) {
+      const canonical = armoryById.get(entry.compatibility.armoryId)
+      expect(canonical).toBeDefined()
+      expect(entry).toMatchObject({
+        name: canonical.name,
+        description: canonical.description,
+        source: canonical.source,
+        page: canonical.page,
+        statistics: canonical.statistics,
+      })
+    }
+    expect(
+      rangedWeapons.find((entry) => entry.id === 'l-20-pulse-rifle'),
+    ).not.toHaveProperty('compatibility.armoryId')
   })
 
   it("provides each Wilk's cutting and surgical tool separately", () => {
@@ -58,7 +85,9 @@ describe('character equipment ranged weapon catalog', () => {
       "Wilk's Laser Scalpel",
     ])
     const catalogTools = characterEquipmentCatalog.filter(
-      (entry) => entry.category === 'Tools',
+      (entry) =>
+        entry.sourceId?.startsWith('rue-wilks-') &&
+        /torch|wand|scalpel/.test(entry.sourceId),
     )
     expect(catalogTools).toHaveLength(3)
     expect(
@@ -73,7 +102,7 @@ describe('character equipment ranged weapon catalog', () => {
 
   it('adds a tool with its complete statistics to other items', () => {
     const entry = characterEquipmentCatalog.find(
-      (candidate) => candidate.id === 'wilks-portable-laser-torch',
+      (candidate) => candidate.id === 'rue-wilks-portable-laser-torch',
     )
     const result = applyEquipmentCatalogSelection(
       {
@@ -83,8 +112,6 @@ describe('character equipment ranged weapon catalog', () => {
         metadata: entry.metadata,
       },
       blank(),
-      [],
-      undefined,
       'tool-1',
     )
     expect(result.equipment.items[0]).toMatchObject({
@@ -102,7 +129,8 @@ describe('character equipment ranged weapon catalog', () => {
     const equipment = blank()
     equipment.weapons.push({ id: 'mine', name: 'Keepsake' })
     const entry = characterEquipmentCatalog.find(
-      (candidate) => candidate.id === 'ng-super-laser-pistol-grenade-launcher',
+      (candidate) =>
+        candidate.id === 'rue-ng-super-laser-pistol-and-grenade-launcher',
     )
     const result = applyEquipmentCatalogSelection(
       {
@@ -112,8 +140,6 @@ describe('character equipment ranged weapon catalog', () => {
         metadata: entry.metadata,
       },
       equipment,
-      [],
-      undefined,
       'new',
     )
 
@@ -127,12 +153,30 @@ describe('character equipment ranged weapon catalog', () => {
       quantity: 2,
       notes: 'One spare',
       catalogSelectionId: entry.id,
-      category: 'Combination Weapons',
+      category: 'Hybrid / Multi-System',
       damage:
         'Laser: 2D4 M.D.; grenade: 4D6 M.D. to a 6 foot (1.8 m) blast area',
       source: 'Rifts Ultimate Edition',
       page: 269,
     })
     expect(result.equipment.weapons[1].statistics).toEqual(entry.statistics)
+  })
+
+  it('derives numeric ammunition capacity from Armory payload statistics', () => {
+    const wilksRifle = characterEquipmentCatalog.find(
+      (entry) => entry.id === 'rue-wilks-447-laser-rifle',
+    )
+    expect(wilksRifle.metadata.defaults).toMatchObject({
+      damage: '3D6 M.D.',
+      range: '2,000 feet (610 m)',
+      ammoMax: 20,
+    })
+    expect(
+      armoryDefaultsForCatalogSelection('rue-wilks-447-laser-rifle'),
+    ).toMatchObject({
+      damage: '3D6 M.D.',
+      range: '2,000 feet (610 m)',
+      ammoMax: 20,
+    })
   })
 })

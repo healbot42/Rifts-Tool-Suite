@@ -60,6 +60,14 @@ describe('project structure', () => {
       true,
     )
     expect(existsSync(fromRoot('src/data/character/occs.js'))).toBe(true)
+    expect(
+      existsSync(fromRoot('src/data/items/rifts-ultimate-edition.json')),
+    ).toBe(true)
+    expect(
+      existsSync(
+        fromRoot('src/data/items/rifts-ultimate-edition.reviewed.json'),
+      ),
+    ).toBe(true)
 
     const pageDataDirectories = readdirSync(fromRoot('src/pages'), {
       withFileTypes: true,
@@ -86,6 +94,29 @@ describe('project structure', () => {
     expect(agent).toMatch(/^name\s*=\s*"game_data_maintainer"/m)
     expect(agent).toMatch(/^description\s*=\s*".+"/m)
     expect(agent).toMatch(/^developer_instructions\s*=\s*"""[\s\S]+"""/m)
+  })
+
+  it('keeps the code-comment agent valid and tracked by convention', () => {
+    const agentPath = fromRoot('.codex/agents/code-comment-maintainer.toml')
+    expect(extname(agentPath)).toBe('.toml')
+    const agent = readFileSync(agentPath, 'utf8')
+    expect(agent).toMatch(/^name\s*=\s*"code_comment_maintainer"/m)
+    expect(agent).toMatch(/^description\s*=\s*".+"/m)
+    expect(agent).toMatch(/^developer_instructions\s*=\s*"""[\s\S]+"""/m)
+    expect(agent).toContain('Use JSDoc')
+    expect(agent).toContain('Do not narrate syntax')
+    const instructions = readFileSync(fromRoot('AGENTS.md'), 'utf8')
+    const endOfDay = instructions.slice(
+      instructions.indexOf('## End-of-day workflow'),
+    )
+    const maintenanceStep = endOfDay.indexOf('`maintenance_cleaner` agent')
+    const commentStep = endOfDay.indexOf('`code_comment_maintainer` agent')
+    const verificationStep = endOfDay.indexOf(
+      'Run `npm run check` and `git diff --check`',
+    )
+    expect(maintenanceStep).toBeGreaterThan(-1)
+    expect(commentStep).toBeGreaterThan(maintenanceStep)
+    expect(verificationStep).toBeGreaterThan(commentStep)
   })
 
   it('keeps the item-image generator agent valid and tracked by convention', () => {

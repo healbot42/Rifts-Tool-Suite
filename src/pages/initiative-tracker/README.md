@@ -25,6 +25,8 @@ Keep feature-specific supporting code inside this directory:
 - Calculation and sorting helpers: `lib/`
 - Shared static game data: `src/data/<domain>/`
 - Tests: `tests/pages/initiative-tracker/`
+- Local encounter, preset, and character-import repositories:
+  `src/lib/persistence/`
 
 `lib/initiativeEngine.js` is intentionally independent of Vue. Game-specific
 configuration supplies the die, labels, round duration, and tie policy. The UI

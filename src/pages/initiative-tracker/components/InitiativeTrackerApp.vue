@@ -17,10 +17,11 @@ import {
   rollInitiative,
   setManualInitiative,
 } from '../lib/initiativeEngine.js'
+import {
+  persistenceErrorMessage,
+  repositories,
+} from '../../../lib/persistence/index.js'
 
-const STORAGE_KEY = 'rifts-initiative-tracker'
-const PRESET_KEY = 'rifts-initiative-presets'
-const CHARACTER_KEY = 'rifts-character-sheet'
 const SPEND_ACTION_TOOLTIP =
   'Remove the last remaining action, or add next-round debt if none remain.'
 const ACTION_DEBT_TOOLTIP =
@@ -43,6 +44,13 @@ const selectedMoveId = ref('')
 const presets = ref([])
 const presetName = ref('')
 const selectedPresetId = ref('')
+const storageStatus = ref('')
+let hydrated = false
+
+function reportStorageFailure(result, subject = 'The initiative tracker') {
+  console.error('Initiative Tracker local storage failed', result.error)
+  storageStatus.value = persistenceErrorMessage(result.error, subject)
+}
 
 const selectedSystem = computed(
   () =>
@@ -619,24 +627,25 @@ function rollGroup(participant) {
   resetTurnProgress()
 }
 
-function importSavedCharacter() {
-  try {
-    const character = JSON.parse(localStorage.getItem(CHARACTER_KEY))
-    if (!character?.identity?.name) return
-    participants.value.push(
-      createParticipant(
-        {
-          name: character.identity.name,
-          type: 'pc',
-          initiativeBonus: Number(character.combat?.initiative || 0),
-          actionsPerRound: Number(character.attacks || 4),
-        },
-        participants.value.length,
-      ),
-    )
-  } catch {
-    /* ignore damaged character data */
+async function importSavedCharacter() {
+  const saved = await repositories.character.importSaved()
+  if (!saved.ok) {
+    reportStorageFailure(saved, 'The saved character')
+    return
   }
+  const character = saved.value
+  if (!character?.identity?.name) return
+  participants.value.push(
+    createParticipant(
+      {
+        name: character.identity.name,
+        type: 'pc',
+        initiativeBonus: Number(character.combat?.initiative || 0),
+        actionsPerRound: Number(character.attacks || 4),
+      },
+      participants.value.length,
+    ),
+  )
 }
 
 function savePreset() {
@@ -684,25 +693,34 @@ function deletePreset() {
   savePresets()
 }
 
-function savePresets() {
-  localStorage.setItem(PRESET_KEY, JSON.stringify(presets.value))
+async function savePresets() {
+  const result = await repositories.initiativePresets.save(presets.value)
+  if (!result.ok || result.warning)
+    reportStorageFailure(
+      { error: result.error || result.warning },
+      'The encounter presets',
+    )
 }
 
-function clearTracker() {
+async function clearTracker() {
+  if (!confirm('Clear the saved initiative encounter?')) return
+  const result = await repositories.initiativeEncounter.remove()
+  if (!result.ok || result.warning) {
+    reportStorageFailure({ error: result.error || result.warning })
+    return
+  }
   participants.value = []
   round.value = 1
   resetTurnProgress()
 }
 
-onMounted(() => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
-    if (saved) {
-      participants.value = saved.participants || []
-      round.value = saved.round || 1
-    }
-  } catch {
-    localStorage.removeItem(STORAGE_KEY)
+onMounted(async () => {
+  const savedTracker = await repositories.initiativeEncounter.load()
+  if (savedTracker.ok && savedTracker.value) {
+    participants.value = savedTracker.value.participants || []
+    round.value = savedTracker.value.round || 1
+  } else if (!savedTracker.ok || savedTracker.warning) {
+    reportStorageFailure({ error: savedTracker.error || savedTracker.warning })
   }
   participants.value = participants.value.map((participant, index) => ({
     ...createParticipant({}, index),
@@ -711,22 +729,29 @@ onMounted(() => {
     actionDebt: Number(participant.actionDebt || 0),
     active: participant.active !== false,
   }))
-  try {
-    presets.value = JSON.parse(localStorage.getItem(PRESET_KEY)) || []
-  } catch {
-    presets.value = []
-  }
+  const savedPresets = await repositories.initiativePresets.load()
+  if (savedPresets.ok) presets.value = savedPresets.value || []
+  if (!savedPresets.ok || savedPresets.warning)
+    reportStorageFailure(
+      { error: savedPresets.error || savedPresets.warning },
+      'The encounter presets',
+    )
+  await nextTick()
+  hydrated = true
 })
 
 onBeforeUnmount(clearTurnDrag)
 
 watch(
   [participants, round],
-  () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ participants: participants.value, round: round.value }),
-    )
+  async () => {
+    if (!hydrated) return
+    const result = await repositories.initiativeEncounter.save({
+      participants: participants.value,
+      round: round.value,
+    })
+    if (!result.ok || result.warning)
+      reportStorageFailure({ error: result.error || result.warning })
   },
   { deep: true },
 )
@@ -763,6 +788,14 @@ watch(
         <strong>{{ selectedSystem.name }}</strong>
       </div>
     </header>
+
+    <p
+      v-if="storageStatus"
+      class="storage-status panel"
+      role="alert"
+    >
+      {{ storageStatus }}
+    </p>
 
     <section
       class="panel tracker-controls"
@@ -1452,16 +1485,21 @@ watch(
 .section-heading {
   justify-content: space-between;
 }
+.initiative-header.panel,
+.tracker-controls.panel,
+.encounter-presets.panel {
+  box-shadow: none;
+}
 .initiative-header p {
   max-width: 46rem;
   margin-bottom: 0;
 }
 .system-badge {
   min-width: 15rem;
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.85rem;
   border: 1px solid var(--color-border-strong);
-  border-radius: 12px;
-  background: var(--color-input);
+  border-radius: 999px;
+  background: rgba(77, 163, 255, 0.08);
 }
 .system-badge span,
 .control-label,
@@ -1491,6 +1529,7 @@ watch(
 }
 .encounter-presets {
   justify-content: space-between;
+  border-left: 3px solid var(--color-blue);
 }
 .encounter-presets > div:first-child {
   display: grid;
@@ -1519,16 +1558,22 @@ h2 {
 }
 .turn-queue {
   display: grid;
-  gap: 0.45rem;
+  gap: 1px;
+  overflow: hidden;
   margin: 1rem 0 0;
   padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-border);
   list-style: none;
 }
 .pass-divider {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  margin-top: 0.55rem;
+  margin-top: 0;
+  padding: 0.55rem 0.75rem;
+  background: rgba(255, 145, 31, 0.1);
   color: var(--color-accent-bright);
   font-size: 0.78rem;
   font-weight: 900;
@@ -1562,9 +1607,9 @@ h2 {
   gap: 0.75rem;
   min-height: 3.25rem;
   padding: 0.55rem 0.75rem;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-left: 4px solid var(--color-blue);
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--color-input);
   transition:
     transform 80ms ease,
@@ -1577,7 +1622,6 @@ h2 {
   border-left-color: var(--color-negative);
 }
 .queue-entry.next {
-  border-color: var(--color-accent);
   background: rgba(242, 140, 40, 0.12);
   box-shadow: 0 0 0 1px var(--color-accent);
 }
@@ -1644,6 +1688,10 @@ h2 {
   display: grid;
   gap: 0.75rem;
   margin-top: 1rem;
+}
+.roster.panel,
+.turn-order.panel {
+  box-shadow: none;
 }
 .combatant-card {
   padding: 0.85rem;

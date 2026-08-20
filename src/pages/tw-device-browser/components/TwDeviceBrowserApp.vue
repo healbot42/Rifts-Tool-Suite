@@ -1,20 +1,19 @@
 <script setup>
 import { computed, ref } from 'vue'
-import catalog from '../../../data/tw-devices/tw-devices.json'
-import { groupDevices, searchDevices } from '../lib/deviceSearch.js'
+import { armoryItems } from '../../../data/items/armory.js'
+import {
+  groupArmoryItems,
+  resolveFilteredSelection,
+  searchDevices,
+} from '../lib/deviceSearch.js'
 import DeviceWireframe from './DeviceWireframe.vue'
 
 const query = ref('')
-const selectedId = ref(catalog.devices[0]?.id ?? '')
-const filteredDevices = computed(() =>
-  searchDevices(catalog.devices, query.value),
-)
-const groupedDevices = computed(() => groupDevices(filteredDevices.value))
-const selectedDevice = computed(
-  () =>
-    catalog.devices.find((device) => device.id === selectedId.value) ??
-    filteredDevices.value[0] ??
-    null,
+const selectedId = ref(armoryItems[0]?.id ?? '')
+const filteredDevices = computed(() => searchDevices(armoryItems, query.value))
+const groupedDevices = computed(() => groupArmoryItems(filteredDevices.value))
+const selectedDevice = computed(() =>
+  resolveFilteredSelection(filteredDevices.value, selectedId.value),
 )
 
 function selectDevice(device) {
@@ -28,20 +27,20 @@ function selectDevice(device) {
 <template>
   <main class="device-browser-page">
     <header class="device-browser-header">
-      <p class="eyebrow">Techno-Wizard archives</p>
-      <h1>TW Device Catalog</h1>
+      <p class="eyebrow">Rifts equipment archives</p>
+      <h1>Armory</h1>
       <p>
-        Browse categorized Techno-Wizard devices compiled from the supplied
-        Rifts sourcebooks.
+        Browse equipment, weapons, armor, vehicles, and Techno-Wizard devices
+        compiled from the supplied Rifts sourcebooks.
       </p>
     </header>
 
     <div class="device-browser-layout">
       <aside
         class="device-index panel"
-        aria-label="Techno-Wizard device index"
+        aria-label="Armory item index"
       >
-        <label for="device-search">Search devices</label>
+        <label for="device-search">Search the armory</label>
         <input
           id="device-search"
           v-model="query"
@@ -53,24 +52,30 @@ function selectDevice(device) {
           class="result-count"
           aria-live="polite"
         >
-          {{ filteredDevices.length }} of {{ catalog.devices.length }} devices
+          {{ filteredDevices.length }} of {{ armoryItems.length }} items
         </p>
         <nav
           class="category-list"
-          aria-label="Device categories"
+          aria-label="Armory categories"
         >
           <details
             v-for="group in groupedDevices"
             :key="group.category"
           >
             <summary>
-              {{ group.category }} <span>{{ group.devices.length }}</span>
+              {{ group.category }}
+              <span>{{
+                group.groups.reduce(
+                  (sum, entry) => sum + entry.devices.length,
+                  0,
+                )
+              }}</span>
             </summary>
             <button
-              v-for="device in group.devices"
+              v-for="device in group.directDevices"
               :key="device.id"
               type="button"
-              class="device-index-button"
+              class="device-index-button direct-category-item"
               :class="{ active: selectedDevice?.id === device.id }"
               :aria-current="
                 selectedDevice?.id === device.id ? 'true' : undefined
@@ -79,12 +84,37 @@ function selectDevice(device) {
             >
               {{ device.name }}
             </button>
+            <template v-if="group.groups.length > 1">
+              <details
+                v-for="subgroup in group.groups"
+                :key="subgroup.subcategory"
+                class="armory-subgroup"
+              >
+                <summary>
+                  {{ subgroup.subcategory }}
+                  <span>{{ subgroup.devices.length }}</span>
+                </summary>
+                <button
+                  v-for="device in subgroup.devices"
+                  :key="device.id"
+                  type="button"
+                  class="device-index-button"
+                  :class="{ active: selectedDevice?.id === device.id }"
+                  :aria-current="
+                    selectedDevice?.id === device.id ? 'true' : undefined
+                  "
+                  @click="selectDevice(device)"
+                >
+                  {{ device.name }}
+                </button>
+              </details>
+            </template>
           </details>
           <p
             v-if="!groupedDevices.length"
             class="empty-state"
           >
-            No devices match that search.
+            No armory items match that search.
           </p>
         </nav>
       </aside>
@@ -101,6 +131,7 @@ function selectDevice(device) {
             </p>
           </div>
           <DeviceWireframe
+            v-if="selectedDevice.image"
             :key="selectedDevice.id"
             :device="selectedDevice"
           />

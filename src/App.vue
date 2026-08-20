@@ -75,7 +75,7 @@ onBeforeUnmount(() =>
             r="1"
           />
         </svg>
-        <span>TW Devices</span>
+        <span>Armory</span>
       </a>
       <a
         class="app-page-link"

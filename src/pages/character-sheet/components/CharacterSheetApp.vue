@@ -2,6 +2,13 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import CatalogPickerModal from '../../../components/CatalogPickerModal.vue'
 import CatalogEntryDetails from '../../../components/CatalogEntryDetails.vue'
+import SpellDetails from './SpellDetails.vue'
+import SpellPickerModal from './SpellPickerModal.vue'
+import {
+  groupInvocationsByLevel,
+  invocations,
+  invocationsById,
+} from '../../../data/magic/invocations.js'
 import {
   skillCategories,
   skills,
@@ -20,22 +27,22 @@ import {
 import {
   reconcileStartingEquipment,
   specializationEquipmentPackages,
-  startingAssetRequirements,
   startingEquipmentPackages,
 } from '../../../data/character/startingEquipment.js'
 import {
-  assetCatalog,
-  assetsByType,
-} from '../../../data/character/assetCatalog.js'
-import {
   applyEquipmentCatalogSelection,
+  armoryDefaultsForCatalogSelection,
   characterEquipmentCatalog,
+  legalStartingEquipmentEntries,
 } from '../../../data/character/equipmentCatalog.js'
 import {
-  createOwnedAsset,
-  normalizeOwnedAssets,
-  ownedAssetStats,
-} from '../lib/ownedAssets.js'
+  attributeDefinitions,
+  attributeOrder,
+  attributeRulesSource,
+  evaluateAttributeRequirements,
+  generateAttributes,
+  rollOccAttributeBonuses,
+} from '../../../data/character/attributeRules.js'
 import {
   attributeBonus,
   hitPoints,
@@ -58,8 +65,17 @@ import {
   specializationSelectionVisible,
 } from '../lib/specializations.js'
 import '../character-sheet.css'
+import {
+  persistenceErrorMessage,
+  repositories,
+} from '../../../lib/persistence/index.js'
 
-const STORAGE_KEY = 'rifts-character-sheet'
+const storageStatus = ref('')
+
+function reportStorageFailure(result) {
+  console.error('Character Sheet local storage failed', result.error)
+  storageStatus.value = persistenceErrorMessage(result.error, 'The character')
+}
 const OCC_TOOLTIP =
   'Select an Occupational or Racial Character Class. Its package populates ' +
   'automatic skills, bonuses, choices, and abilities.'
@@ -90,9 +106,24 @@ function nativeLanguageTooltip(occ) {
 
 function otherLanguageTooltip(occ) {
   return (
-    `Choose one additional spoken language with a +${occ.languages.otherBonus}% ` +
+    `Choose each additional spoken language with a +${occ.languages.otherBonus}% ` +
     'O.C.C. bonus.'
   )
+}
+
+function literacyLanguageTooltip(occ) {
+  return (
+    `Choose each required literacy with a +${occ.languages.literacyOtherBonus}% ` +
+    'O.C.C. bonus.'
+  )
+}
+
+function occOtherLanguageCount(occ) {
+  return Math.max(1, Number(occ?.languages?.otherCount) || 1)
+}
+
+function occLiteracyCount(occ) {
+  return Math.max(0, Number(occ?.languages?.literacyOtherCount) || 0)
 }
 
 function equipmentActionTooltip(action, section) {
@@ -141,6 +172,11 @@ const blank = () => ({
     pb: 10,
     spd: 10,
   },
+  attributeGeneration: {
+    base: null,
+    lowAssignments: [],
+    occBonuses: null,
+  },
   strengthType: 'normal',
   attacks: 4,
   hpFirstRoll: 0,
@@ -163,6 +199,7 @@ const blank = () => ({
   languages: { spoken: [], literacy: [] },
   classChoices: {},
   equipment: { weapons: [], armor: [], vehicles: [], items: [] },
+  spells: [],
   ownedAssets: [],
   play: {
     hp: null,
@@ -187,10 +224,16 @@ const blank = () => ({
 })
 const state = reactive(blank())
 const mode = ref('edit')
+const attributeRollError = ref('')
 const equipmentCatalogOpen = ref(false)
+const startingEquipmentChoiceTarget = ref(null)
 const equipmentDetail = ref(null)
 const equipmentDetailDialog = ref(null)
 let equipmentDetailRestore = null
+const spellPickerOpen = ref(false)
+const spellDetail = ref(null)
+const spellDetailDialog = ref(null)
+let spellDetailRestore = null
 const editTab = ref('identity')
 const editTabs = [
   ['identity', 'Identity'],
@@ -199,6 +242,7 @@ const editTabs = [
   ['derived', 'Derived & Combat'],
   ['skills', 'Skills & Languages'],
   ['equipment', 'Equipment'],
+  ['magic', 'Magic'],
   ['record', 'Character Record'],
 ]
 const equipmentSections = [
@@ -363,6 +407,164 @@ skills.forEach((skill) => skillRecord(skill.id))
 
 const iqBonus = computed(() => attributeBonus('iq', state.attributes.iq))
 const activeOcc = computed(() => occsById[state.identity.occ] || null)
+const attributeRequirementStatus = computed(() =>
+  evaluateAttributeRequirements(
+    activeOcc.value?.attributeRequirements || [],
+    state.attributes,
+  ),
+)
+const unmetAttributeRequirements = computed(() =>
+  attributeRequirementStatus.value.results.filter(
+    (result) => !result.recommended && !result.met,
+  ),
+)
+function attributeRequirement(key) {
+  return attributeRequirementStatus.value.results.find(
+    (result) => result.attribute === key,
+  )
+}
+function attributeRequirementUnmet(key) {
+  const requirement = attributeRequirement(key)
+  return requirement && !requirement.recommended && !requirement.met
+}
+function attributeName(key) {
+  return (
+    attributeDefinitions.find((definition) => definition.id === key)?.name ||
+    key.toUpperCase()
+  )
+}
+function lowBonusTargets(assignment) {
+  const usedTargets = new Set(
+    state.attributeGeneration.lowAssignments
+      .filter(
+        (candidate) =>
+          candidate !== assignment &&
+          candidate.applied &&
+          candidate.distinctTargetGroup === assignment.distinctTargetGroup,
+      )
+      .map((candidate) => candidate.selectedTarget),
+  )
+  return (assignment.eligibleTargets || attributeOrder).filter(
+    (key) => !usedTargets.has(key),
+  )
+}
+function diceText(dice) {
+  return dice?.length ? dice.join(' + ') : 'fixed'
+}
+function rollAllAttributes() {
+  attributeRollError.value = ''
+  try {
+    removeAppliedClassBonuses()
+    const previousPerception =
+      state.attributeGeneration?.base?.lowAttributeCompensation
+        ?.perceptionBonus || 0
+    const result = generateAttributes(Math.random, {
+      generationStrategy: activeOcc.value?.generationStrategy,
+    })
+    Object.assign(state.attributes, result.values)
+    state.combat.perception =
+      (+state.combat.perception || 0) -
+      previousPerception +
+      result.lowAttributeCompensation.perceptionBonus
+    state.attributeGeneration = {
+      base: result,
+      lowAssignments: result.lowAttributeCompensation.operations.map(
+        (operation, index) => ({
+          ...operation,
+          id: `low-${index}`,
+          selectedTarget: '',
+          applied: false,
+        }),
+      ),
+      occBonuses: null,
+    }
+  } catch (error) {
+    attributeRollError.value =
+      error instanceof Error
+        ? error.message
+        : 'This character class does not have an attribute generator yet.'
+  }
+}
+function applyLowAttributeBonus(assignment) {
+  if (
+    assignment.applied ||
+    !lowBonusTargets(assignment).includes(assignment.selectedTarget)
+  )
+    return
+  state.attributes[assignment.selectedTarget] =
+    (+state.attributes[assignment.selectedTarget] || 0) + assignment.value
+  assignment.applied = true
+}
+function operationTargetValue(operation) {
+  if (operation.target === 'hpBonus' || operation.target === 'sdcBonus') {
+    return +state[operation.target] || 0
+  }
+  return Object.hasOwn(state.attributes, operation.target)
+    ? +state.attributes[operation.target] || 0
+    : null
+}
+function setOperationTarget(operation, value) {
+  if (operation.target === 'hpBonus' || operation.target === 'sdcBonus')
+    state[operation.target] = value
+  else if (Object.hasOwn(state.attributes, operation.target))
+    state.attributes[operation.target] = value
+}
+function applyAttributeOperation(operation) {
+  const current = operationTargetValue(operation)
+  if (current == null) return
+  operation.priorValue = current
+  if (operation.operation === 'add')
+    setOperationTarget(operation, current + operation.value)
+  else if (operation.operation === 'minimum')
+    setOperationTarget(operation, Math.max(current, operation.value))
+  else if (operation.operation === 'replace')
+    setOperationTarget(operation, operation.value)
+  operation.appliedValue = operationTargetValue(operation)
+}
+function removeAppliedClassBonuses() {
+  const operations = state.attributeGeneration.occBonuses?.operations || []
+  for (const operation of [...operations].reverse()) {
+    const current = operationTargetValue(operation)
+    if (current == null) continue
+    if (operation.operation === 'add')
+      setOperationTarget(operation, current - operation.value)
+    else if (current === operation.appliedValue)
+      setOperationTarget(operation, operation.priorValue)
+  }
+  state.attributeGeneration.occBonuses = null
+}
+function rollClassAttributeBonuses() {
+  if (!activeOcc.value) return
+  const result = rollOccAttributeBonuses(activeOcc.value)
+  for (const operation of result.operations) applyAttributeOperation(operation)
+  state.attributeGeneration.occBonuses = result
+}
+const startingEquipmentChoices = computed(() =>
+  equipmentSections.flatMap((section) =>
+    (state.equipment[section.id] || [])
+      .filter((item) => item.choice)
+      .map((item) => ({ item, section })),
+  ),
+)
+const knownSpells = computed(() =>
+  state.spells.map((id) => invocationsById[id]).filter(Boolean),
+)
+const knownSpellGroups = computed(() =>
+  groupInvocationsByLevel(knownSpells.value),
+)
+function startingChoicesFor(sectionId) {
+  return startingEquipmentChoices.value.filter(
+    ({ section }) => section.id === sectionId,
+  )
+}
+const activeEquipmentCatalog = computed(() =>
+  startingEquipmentChoiceTarget.value
+    ? legalStartingEquipmentEntries(
+        startingEquipmentChoiceTarget.value.item.choice,
+        startingEquipmentChoiceTarget.value.section.id,
+      )
+    : characterEquipmentCatalog,
+)
 const activeSpecialization = computed(() =>
   specializationById(activeOcc.value, state.classChoices.specialization?.id),
 )
@@ -401,9 +603,25 @@ const trainedSpecialSkills = computed(() =>
     .filter((skill) => skillRecord(skill.id).selected && skill.base == null)
     .sort((a, b) => a.name.localeCompare(b.name)),
 )
+const weaponProficiencyIds = skillCategories.find(
+  ([category]) => category === 'Weapon Proficiencies',
+)[1]
+const trainedWeaponProficiencies = computed(() =>
+  weaponProficiencyIds
+    .filter((id) => skillRecord(id).selected)
+    .map((id) => ({ id, name: skillsById[id].name })),
+)
 function classChoicesIncomplete() {
   if (!activeOcc.value) return false
-  if (!state.classChoices.nativeLanguage || !state.classChoices.otherLanguage)
+  const spoken = state.classChoices.otherLanguages || []
+  const literacies = state.classChoices.literacyLanguages || []
+  if (
+    !state.classChoices.nativeLanguage ||
+    spoken.length !== occOtherLanguageCount(activeOcc.value) ||
+    spoken.some((language) => !language) ||
+    literacies.length !== occLiteracyCount(activeOcc.value) ||
+    literacies.some((language) => !language)
+  )
     return true
   return (
     activeOcc.value.choices.some((choice) =>
@@ -416,6 +634,15 @@ function classChoicesIncomplete() {
 }
 function classChoicesInvalid() {
   if (!activeOcc.value) return false
+  const spoken = [
+    state.classChoices.nativeLanguage,
+    ...(state.classChoices.otherLanguages || []),
+  ].filter(Boolean)
+  const literacies = (state.classChoices.literacyLanguages || []).filter(
+    Boolean,
+  )
+  if (new Set(spoken).size !== spoken.length) return true
+  if (new Set(literacies).size !== literacies.length) return true
   const classSkillChoices = activeOcc.value.choices
     .flatMap((choice) =>
       Array.isArray(state.classChoices[choice.id])
@@ -460,12 +687,8 @@ function specializationChoiceIsDuplicate(choice, index) {
   )
 }
 function equipmentNamesIncomplete() {
-  return (
-    equipmentSections.some((section) =>
-      state.equipment[section.id].some(
-        (item) => !String(item.name || '').trim(),
-      ),
-    ) || state.ownedAssets.some((owned) => !owned.catalogId)
+  return equipmentSections.some((section) =>
+    state.equipment[section.id].some((item) => !String(item.name || '').trim()),
   )
 }
 function tabStatus(tab) {
@@ -477,6 +700,8 @@ function tabStatus(tab) {
       : classChoicesIncomplete()
         ? 'available'
         : ''
+  if (tab === 'attributes')
+    return unmetAttributeRequirements.value.length ? 'error' : ''
   if (tab === 'skills')
     return relatedUsed.value > relatedTotal.value ||
       secondaryUsed.value > secondaryTotal.value
@@ -487,9 +712,22 @@ function tabStatus(tab) {
   if (tab === 'equipment') return equipmentNamesIncomplete() ? 'available' : ''
   return ''
 }
+function refreshCatalogEquipment() {
+  state.play.equipment ||= {}
+  for (const section of equipmentSections)
+    for (const item of state.equipment[section.id]) {
+      const defaults = armoryDefaultsForCatalogSelection(
+        item.catalogSelectionId,
+      )
+      if (!defaults) continue
+      Object.assign(item, defaults)
+      const status = (state.play.equipment[item.id] ||= {})
+      if (status.ammo == null) status.ammo = Number(item.ammoMax) || 0
+    }
+}
 function enterPlayMode() {
   mode.value = 'play'
-  state.play.equipment ||= {}
+  refreshCatalogEquipment()
   if (state.play.hp == null) state.play.hp = derived.value.hp
   if (state.play.sdc == null) state.play.sdc = derived.value.sdc
   if (state.play.isp == null) state.play.isp = state.resources.isp
@@ -499,7 +737,10 @@ function enterPlayMode() {
   if (state.play.armorMdc == null)
     state.play.armorMdc = activeOccMdc.value?.armor ?? 0
   for (const section of equipmentSections)
-    for (const item of state.equipment[section.id]) equipmentStatus(item)
+    for (const item of state.equipment[section.id]) {
+      if (String(item.name || '').trim()) equipmentStatus(item)
+      else delete state.play.equipment[item.id]
+    }
 }
 function equipmentId() {
   return (
@@ -507,33 +748,88 @@ function equipmentId() {
     `equipment-${Date.now()}-${Math.random().toString(36).slice(2)}`
   )
 }
+const legacyAssetArmoryIds = {
+  'usa-g10-glitter-boy': 'rue-glitter-boy-power-armor',
+  'ft-005-flying-titan': 'rue-titan-industries-ft-005-flying-titan-power-armor',
+  'ng-x9-samson': 'rue-northern-gun-ng-x9-samson-power-armor',
+  'tr-001-combat-titan': 'rue-titan-industries-tr-001-titan-combat-robot',
+}
+function migrateLegacyOwnedAssets() {
+  for (const owned of state.ownedAssets || []) {
+    const catalogId = legacyAssetArmoryIds[owned.catalogId]
+    const catalog = characterEquipmentCatalog.find(
+      (entry) => entry.id === catalogId,
+    )
+    if (!catalog) continue
+    const id = `migrated:${owned.id}`
+    const existing = state.equipment.vehicles.find(
+      (item) => item.id === id || item.catalogSelectionId === catalog.id,
+    )
+    if (existing) {
+      const status = (state.play.equipment[existing.id] ||= {})
+      status.mdc ??=
+        owned.current?.mainMdc ?? catalog.metadata.defaults.maxMdc ?? 0
+      continue
+    }
+    state.equipment.vehicles.push({
+      ...catalog.metadata.defaults,
+      id,
+      name: owned.name || catalog.name,
+      quantity: 1,
+      notes: '',
+      catalogSelectionId: catalog.id,
+    })
+    state.play.equipment[id] = {
+      mdc: owned.current?.mainMdc ?? catalog.metadata.defaults.maxMdc ?? 0,
+      ammo: 0,
+    }
+  }
+  state.ownedAssets = []
+}
 function addEquipment(kind) {
   const section = equipmentSections.find((entry) => entry.id === kind)
-  const item = { id: equipmentId() }
+  const item = {
+    id: equipmentId(),
+  }
   for (const [key, , type] of section.fields)
     item[key] = type === 'number' ? 0 : ''
   if (kind === 'items') item.quantity = 1
   state.equipment[kind].push(item)
 }
-function addOwnedAsset() {
-  state.ownedAssets.push({
-    id: equipmentId(),
-    catalogId: '',
-    name: '',
-    snapshot: null,
-    current: { mainMdc: 0, ammo: {} },
-  })
-}
 function addCatalogEquipment(selection) {
+  if (startingEquipmentChoiceTarget.value) {
+    const { item } = startingEquipmentChoiceTarget.value
+    const wasSelected = Boolean(item.catalogSelectionId)
+    Object.assign(item, selection.metadata.defaults, {
+      name: selection.metadata.customChoice
+        ? selection.values.customName
+        : selection.name,
+      catalogSelectionId: selection.catalogId,
+      notes: selection.values.notes || item.notes || '',
+    })
+    if (!wasSelected) equipmentStatus(item).ammo = Number(item.ammoMax) || 0
+    startingEquipmentChoiceTarget.value = null
+    equipmentCatalogOpen.value = false
+    return
+  }
   const result = applyEquipmentCatalogSelection(
     selection,
     state.equipment,
-    state.ownedAssets,
-    createOwnedAsset,
     equipmentId(),
   )
   state.equipment = result.equipment
-  state.ownedAssets = result.ownedAssets
+  equipmentCatalogOpen.value = false
+}
+function openEquipmentCatalog() {
+  startingEquipmentChoiceTarget.value = null
+  equipmentCatalogOpen.value = true
+}
+function openStartingEquipmentChoice(choice) {
+  startingEquipmentChoiceTarget.value = choice
+  equipmentCatalogOpen.value = true
+}
+function closeEquipmentCatalog() {
+  startingEquipmentChoiceTarget.value = null
   equipmentCatalogOpen.value = false
 }
 function catalogStatistic(item, ...labels) {
@@ -556,20 +852,33 @@ watch(equipmentDetail, async (item) => {
     equipmentDetailDialog.value?.focus()
   } else equipmentDetailRestore?.focus()
 })
-function selectOwnedAsset(owned) {
-  const replacement = createOwnedAsset(owned.catalogId, owned.id)
-  if (replacement) Object.assign(owned, replacement)
+function addKnownSpell(id) {
+  if (!invocationsById[id] || state.spells.includes(id)) return
+  state.spells.push(id)
+  spellPickerOpen.value = false
 }
-function removeOwnedAsset(index) {
-  state.ownedAssets.splice(index, 1)
+function removeKnownSpell(id) {
+  state.spells = state.spells.filter((spellId) => spellId !== id)
 }
+function openSpellDetail(spell) {
+  spellDetail.value = spell
+}
+watch(spellDetail, async (spell) => {
+  if (spell) {
+    spellDetailRestore = document.activeElement
+    await nextTick()
+    spellDetailDialog.value?.focus()
+  } else spellDetailRestore?.focus()
+})
 function reconcileClassEquipment() {
   const occId = activeOcc.value?.id
   if (!occId) return
+  const weaponProficiencies = trainedWeaponProficiencies.value
   state.equipment = reconcileStartingEquipment(
     state.equipment,
     startingEquipmentPackages[occId],
     occId,
+    { weaponProficiencies },
   )
   const specializationId = state.classChoices.specialization?.id
   if (specializationId)
@@ -577,31 +886,14 @@ function reconcileClassEquipment() {
       state.equipment,
       specializationEquipmentPackages[`${occId}:${specializationId}`],
       `${occId}:${specializationId}`,
+      { weaponProficiencies },
     )
-  for (const key of [
-    occId,
-    specializationId && `${occId}:${specializationId}`,
-  ].filter(Boolean)) {
-    for (const requirement of startingAssetRequirements[key] || []) {
-      const ownedId = `required:${key}:${requirement.id}`
-      if (state.ownedAssets.some((owned) => owned.id === ownedId)) continue
-      const seeded = requirement.fixedCatalogId
-        ? createOwnedAsset(requirement.fixedCatalogId, ownedId)
-        : {
-            id: ownedId,
-            catalogId: '',
-            name: requirement.label,
-            snapshot: null,
-            current: { mainMdc: 0, ammo: {} },
-          }
-      state.ownedAssets.push({
-        ...seeded,
-        requiredType: requirement.type,
-        requirementLabel: requirement.label,
-      })
-    }
-  }
 }
+watch(
+  () => trainedWeaponProficiencies.value.map(({ id }) => id).join(','),
+  () => reconcileClassEquipment(),
+  { flush: 'post' },
+)
 function removeEquipment(kind, index) {
   const [item] = state.equipment[kind].splice(index, 1)
   if (item) delete state.play.equipment[item.id]
@@ -614,10 +906,8 @@ function equipmentStatus(item) {
   return status
 }
 function populatedEquipment(kind) {
-  return state.equipment[kind].filter(
-    (item) =>
-      item.name ||
-      Object.entries(item).some(([key, value]) => key !== 'id' && value),
+  return state.equipment[kind].filter((item) =>
+    Boolean(String(item.name || '').trim()),
   )
 }
 const trainedEffects = computed(() => {
@@ -1058,8 +1348,8 @@ function setOccSkill(id, bonus, type = 'occ') {
   record.occBonus = bonus
   record.learnedLevel = 1
 }
-function syncOccLanguage(slot, type) {
-  state.languages.spoken = state.languages.spoken.filter(
+function syncOccLanguage(slot, type, kind = 'spoken') {
+  state.languages[kind] = state.languages[kind].filter(
     (record) => !(record.occId && record.occSlot === slot),
   )
   if (!type) return
@@ -1068,7 +1358,7 @@ function syncOccLanguage(slot, type) {
     nativeBonus: 0,
     otherBonus: 0,
   }
-  state.languages.spoken.push(
+  state.languages[kind].push(
     slot === 'native'
       ? {
           type,
@@ -1083,13 +1373,52 @@ function syncOccLanguage(slot, type) {
         }
       : {
           type,
-          occBonus: rules.otherBonus,
+          occBonus:
+            kind === 'literacy'
+              ? rules.literacyOtherBonus || 0
+              : rules.otherBonus,
           otherBonus: 0,
           learnedLevel: 1,
           useIq: true,
           occId: activeOcc.value.id,
           occSlot: slot,
         },
+  )
+}
+
+function normalizeOccLanguageChoices() {
+  const occ = activeOcc.value
+  if (!occ) return
+  const savedSpoken = state.languages.spoken
+    .filter((record) => record.occId && record.occSlot !== 'native')
+    .map((record) => record.type)
+  const savedLiteracies = state.languages.literacy
+    .filter((record) => record.occId)
+    .map((record) => record.type)
+  const legacyOther = state.classChoices.otherLanguage
+  const spoken =
+    state.classChoices.otherLanguages || [legacyOther].filter(Boolean)
+  const literacies = state.classChoices.literacyLanguages || []
+  state.classChoices.otherLanguages = Array.from(
+    { length: occOtherLanguageCount(occ) },
+    (_, index) => spoken[index] || savedSpoken[index] || '',
+  )
+  state.classChoices.literacyLanguages = Array.from(
+    { length: occLiteracyCount(occ) },
+    (_, index) => literacies[index] || savedLiteracies[index] || '',
+  )
+  delete state.classChoices.otherLanguage
+  state.languages.spoken = state.languages.spoken.filter(
+    (record) => !record.occId || record.occSlot === 'native',
+  )
+  state.languages.literacy = state.languages.literacy.filter(
+    (record) => !record.occId,
+  )
+  state.classChoices.otherLanguages.forEach((language, index) =>
+    syncOccLanguage(`other-${index}`, language),
+  )
+  state.classChoices.literacyLanguages.forEach((language, index) =>
+    syncOccLanguage(`literacy-${index}`, language, 'literacy'),
   )
 }
 function syncOccChoice(choice) {
@@ -1182,6 +1511,7 @@ function syncSpecializationChoice(choice) {
   }
 }
 function applyOcc() {
+  removeAppliedClassBonuses()
   for (const skill of skills)
     if (['occ', 'occ-choice'].includes(skillRecord(skill.id).trainingType))
       Object.assign(skillRecord(skill.id), {
@@ -1217,7 +1547,9 @@ function applyOcc() {
       choice.count > 1 ? Array(choice.count).fill('') : ''
   state.classChoices.specialization = blankSpecializationState()
   state.classChoices.nativeLanguage = 'American'
-  state.classChoices.otherLanguage = ''
+  state.classChoices.otherLanguages = Array(occOtherLanguageCount(occ)).fill('')
+  state.classChoices.literacyLanguages = Array(occLiteracyCount(occ)).fill('')
+  delete state.classChoices.otherLanguage
   syncOccLanguage('native', 'American')
   reconcileClassEquipment()
 }
@@ -1244,8 +1576,14 @@ function languageTotal(kind, record) {
     iqBonus.value,
   )
 }
-function resetSheet() {
-  if (confirm('Clear the saved character sheet?')) Object.assign(state, blank())
+async function resetSheet() {
+  if (!confirm('Clear the saved character sheet?')) return
+  const result = await repositories.character.remove()
+  if (!result.ok || result.warning) {
+    reportStorageFailure({ error: result.error || result.warning })
+    return
+  }
+  Object.assign(state, blank())
 }
 function downloadJson() {
   const blob = new Blob([JSON.stringify(state, null, 2)], {
@@ -1269,6 +1607,7 @@ function importJson(event) {
         activeOcc.value,
         state.classChoices.specialization,
       )
+      normalizeOccLanguageChoices()
     } catch {
       alert('That file is not a valid character export.')
     }
@@ -1277,21 +1616,29 @@ function importJson(event) {
   event.target.value = ''
 }
 
-onMounted(() => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) Object.assign(state, blank(), JSON.parse(saved))
-  } catch {
-    /* ignore damaged local data */
-  }
+onMounted(async () => {
+  const saved = await repositories.character.load()
+  if (saved.ok && saved.value) Object.assign(state, blank(), saved.value)
+  else if (!saved.ok || saved.warning)
+    reportStorageFailure({ error: saved.error || saved.warning })
   state.languages ||= { spoken: [], literacy: [] }
   state.languages.spoken ||= []
   state.languages.literacy ||= []
+  state.spells = [...new Set(state.spells || [])].filter(
+    (id) => invocationsById[id],
+  )
   state.equipment ||= { weapons: [], armor: [], vehicles: [], items: [] }
-  state.ownedAssets = normalizeOwnedAssets(state.ownedAssets)
+  state.attributeGeneration ||= {
+    base: null,
+    lowAssignments: [],
+    occBonuses: null,
+  }
+  state.attributeGeneration.lowAssignments ||= []
   for (const section of equipmentSections) {
     state.equipment[section.id] ||= []
-    for (const item of state.equipment[section.id]) item.id ||= equipmentId()
+    for (const item of state.equipment[section.id]) {
+      item.id ||= equipmentId()
+    }
   }
   state.classChoices ||= {}
   state.play ||= {
@@ -1305,13 +1652,16 @@ onMounted(() => {
     equipment: {},
   }
   state.play.equipment ||= {}
+  refreshCatalogEquipment()
   state.skillBonusRolls ||= {}
   state.combat.perception ??= 0
   state.classChoices.specialization = normalizeSpecializationState(
     activeOcc.value,
     state.classChoices.specialization,
   )
+  normalizeOccLanguageChoices()
   reconcileClassEquipment()
+  migrateLegacyOwnedAssets()
   skills.forEach((skill) => {
     const record = skillRecord(skill.id)
     if (
@@ -1321,12 +1671,16 @@ onMounted(() => {
       record.trainingType = 'secondary'
   })
   skills.forEach((skill) => skillRecord(skill.id))
+  await nextTick()
   hydrated = true
 })
 watch(
   state,
-  (value) => {
-    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+  async (value) => {
+    if (!hydrated) return
+    const result = await repositories.character.save(value)
+    if (!result.ok || result.warning)
+      reportStorageFailure({ error: result.error || result.warning })
   },
   { deep: true },
 )
@@ -1376,6 +1730,13 @@ watch(
         </button>
       </div>
     </header>
+    <p
+      v-if="storageStatus"
+      class="storage-status panel"
+      role="alert"
+    >
+      {{ storageStatus }}
+    </p>
 
     <div
       v-if="mode === 'edit'"
@@ -1708,18 +2069,61 @@ watch(
               </select></label
             >
             <label
+              v-for="(_, index) in state.classChoices.otherLanguages"
+              :key="`other-language-${index}`"
               v-tooltip="otherLanguageTooltip(activeOcc)"
               :class="[
                 'required-field',
-                { 'needs-choice': !state.classChoices.otherLanguage },
+                {
+                  'needs-choice': !state.classChoices.otherLanguages[index],
+                },
               ]"
               ><span
-                >Other language (+{{ activeOcc.languages.otherBonus }}%)</span
+                >Other language {{ index + 1 }} (+{{
+                  activeOcc.languages.otherBonus
+                }}%)</span
               ><select
-                v-model="state.classChoices.otherLanguage"
+                v-model="state.classChoices.otherLanguages[index]"
                 required
                 @change="
-                  syncOccLanguage('other', state.classChoices.otherLanguage)
+                  syncOccLanguage(
+                    `other-${index}`,
+                    state.classChoices.otherLanguages[index],
+                  )
+                "
+              >
+                <option value="">Choose a language</option>
+                <option
+                  v-for="language in languages"
+                  :key="language"
+                >
+                  {{ language }}
+                </option>
+              </select></label
+            >
+            <label
+              v-for="(_, index) in state.classChoices.literacyLanguages"
+              :key="`literacy-language-${index}`"
+              v-tooltip="literacyLanguageTooltip(activeOcc)"
+              :class="[
+                'required-field',
+                {
+                  'needs-choice': !state.classChoices.literacyLanguages[index],
+                },
+              ]"
+              ><span
+                >Literacy {{ index + 1 }} (+{{
+                  activeOcc.languages.literacyOtherBonus
+                }}%)</span
+              ><select
+                v-model="state.classChoices.literacyLanguages[index]"
+                required
+                @change="
+                  syncOccLanguage(
+                    `literacy-${index}`,
+                    state.classChoices.literacyLanguages[index],
+                    'literacy',
+                  )
                 "
               >
                 <option value="">Choose a language</option>
@@ -1812,27 +2216,194 @@ watch(
 
         <div
           v-if="editTab === 'attributes'"
-          class="sheet-columns"
+          class="sheet-columns attribute-health-layout"
         >
-          <section class="panel">
-            <h2>Attributes</h2>
+          <section class="panel attribute-builder">
+            <header class="attribute-builder-heading">
+              <div>
+                <h2>Attributes</h2>
+                <p>
+                  Generated values remain fully editable ·
+                  {{ attributeRulesSource.book }} pp.
+                  {{ attributeRulesSource.pages }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="rollAllAttributes"
+              >
+                Roll all attributes
+              </button>
+            </header>
+            <p
+              v-if="attributeRollError"
+              class="attribute-requirement-alert"
+              role="alert"
+            >
+              {{ attributeRollError }}
+            </p>
+            <p
+              v-if="unmetAttributeRequirements.length"
+              class="attribute-requirement-alert"
+              role="alert"
+            >
+              {{ activeOcc.name }} requirements not met:
+              {{
+                unmetAttributeRequirements.map((item) => item.label).join(', ')
+              }}.
+            </p>
             <div class="attribute-grid">
               <label
                 v-for="(value, key) in state.attributes"
                 :key="key"
-                ><span>{{ key.toUpperCase() }}</span
+                :class="{
+                  'attribute-requirement-unmet': attributeRequirementUnmet(key),
+                }"
+                ><span
+                  >{{ key.toUpperCase() }}
+                  <em v-if="attributeRequirement(key)">
+                    {{
+                      attributeRequirement(key).recommended
+                        ? 'suggested'
+                        : 'minimum'
+                    }}
+                    {{ attributeRequirement(key).minimum }}
+                  </em></span
                 ><input
                   v-model.number="state.attributes[key]"
                   type="number"
                   min="0"
+                  :aria-invalid="
+                    attributeRequirementUnmet(key) ? 'true' : undefined
+                  "
                 /><small v-if="trainedEffects.attributes[key]"
-                  >Trained skills +{{ trainedEffects.attributes[key] }} Â· total
+                  >Trained skills +{{ trainedEffects.attributes[key] }} · total
                   {{ effectiveAttributes[key] }}</small
                 ><small v-else-if="key === 'iq'"
                   >Skill bonus +{{ iqBonus }}%</small
-                ></label
+                ><small v-if="state.attributeGeneration.base?.rolls[key]">
+                  Rolled
+                  {{
+                    diceText(state.attributeGeneration.base.rolls[key].baseDice)
+                  }}
+                  <template
+                    v-if="
+                      state.attributeGeneration.base.rolls[key].exceptionalDice
+                        ?.length
+                    "
+                  >
+                    + exceptional
+                    {{
+                      diceText(
+                        state.attributeGeneration.base.rolls[key]
+                          .exceptionalDice,
+                      )
+                    }}</template
+                  >
+                </small></label
               >
             </div>
+            <section
+              v-if="state.attributeGeneration.lowAssignments.length"
+              class="attribute-adjustments"
+            >
+              <h3>Low-attribute bonus choices</h3>
+              <p>The book grants these bonuses to attributes of your choice.</p>
+              <p
+                v-if="
+                  state.attributeGeneration.base.lowAttributeCompensation
+                    .perceptionBonus
+                "
+                class="attribute-rule-note"
+              >
+                +{{
+                  state.attributeGeneration.base.lowAttributeCompensation
+                    .perceptionBonus
+                }}
+                Perception was applied automatically for multiple low
+                attributes.
+              </p>
+              <div
+                v-for="assignment in state.attributeGeneration.lowAssignments"
+                :key="assignment.id"
+                class="attribute-adjustment-row"
+              >
+                <span>
+                  {{ assignment.label }}: +{{ assignment.value }} ({{
+                    diceText(assignment.dice)
+                  }})
+                </span>
+                <select
+                  v-model="assignment.selectedTarget"
+                  :disabled="assignment.applied"
+                  aria-label="Attribute receiving low-attribute bonus"
+                >
+                  <option value="">Choose attribute</option>
+                  <option
+                    v-for="key in lowBonusTargets(assignment)"
+                    :key="key"
+                    :value="key"
+                  >
+                    {{ attributeName(key) }}
+                  </option>
+                </select>
+                <button
+                  type="button"
+                  class="secondary"
+                  :disabled="
+                    assignment.applied ||
+                    !lowBonusTargets(assignment).includes(
+                      assignment.selectedTarget,
+                    )
+                  "
+                  @click="applyLowAttributeBonus(assignment)"
+                >
+                  {{ assignment.applied ? 'Applied' : 'Apply' }}
+                </button>
+              </div>
+            </section>
+            <section
+              v-if="activeOcc?.attributeBonuses?.length"
+              class="attribute-adjustments occ-attribute-bonuses"
+            >
+              <div class="attribute-bonus-heading">
+                <div>
+                  <h3>{{ activeOcc.name }} attribute bonuses</h3>
+                  <p>
+                    Roll and apply this class package once
+                    <template v-if="activeOcc.attributeBonusSource">
+                      · {{ activeOcc.attributeBonusSource.book }} p.
+                      {{ activeOcc.attributeBonusSource.pages }}</template
+                    >.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  :disabled="Boolean(state.attributeGeneration.occBonuses)"
+                  @click="rollClassAttributeBonuses"
+                >
+                  {{
+                    state.attributeGeneration.occBonuses
+                      ? 'Class bonuses applied'
+                      : 'Roll class bonuses'
+                  }}
+                </button>
+              </div>
+              <ul v-if="state.attributeGeneration.occBonuses">
+                <li
+                  v-for="operation in state.attributeGeneration.occBonuses
+                    .operations"
+                  :key="operation.id"
+                >
+                  {{ operation.label }}:
+                  {{ operation.operation === 'add' ? '+' : ''
+                  }}{{ operation.value }}
+                  <span v-if="operation.dice?.length">
+                    ({{ diceText(operation.dice) }})
+                  </span>
+                </li>
+              </ul>
+            </section>
           </section>
           <section class="panel">
             <h2>Health & resources</h2>
@@ -1944,7 +2515,7 @@ watch(
               tabindex="0"
               ><span>Running</span><strong>{{ derived.move.mph }} mph</strong
               ><small
-                >{{ derived.move.perMelee }} ft/melee Â·
+                >{{ derived.move.perMelee }} ft/melee ·
                 {{ derived.move.perAttack }} ft/attack</small
               ></output
             >
@@ -1961,7 +2532,7 @@ watch(
               tabindex="0"
               ><span>Trust / intimidate</span
               ><strong>{{
-                derived.trust ? derived.trust + '%' : 'â€”'
+                derived.trust ? derived.trust + '%' : '—'
               }}</strong></output
             >
             <output
@@ -1970,7 +2541,7 @@ watch(
               tabindex="0"
               ><span>Charm / impress</span
               ><strong>{{
-                derived.charm ? derived.charm + '%' : 'â€”'
+                derived.charm ? derived.charm + '%' : '—'
               }}</strong></output
             >
             <output
@@ -2069,7 +2640,7 @@ watch(
                 v-for="roll in trainedEffects.rolls"
                 :key="`${roll.id}:${roll.type}`"
                 ><span
-                  >{{ skillsById[roll.id].name }} Â· {{ roll.dice }}
+                  >{{ skillsById[roll.id].name }} · {{ roll.dice }}
                   {{ roll.type === 'sdc' ? 'S.D.C.' : 'Speed' }}</span
                 ><input
                   v-model.number="
@@ -2341,7 +2912,7 @@ watch(
                     <td>
                       {{
                         skillsById[id].base == null
-                          ? 'â€”'
+                          ? '—'
                           : skillsById[id].base + '%'
                       }}
                     </td>
@@ -2392,7 +2963,7 @@ watch(
                     <td>
                       {{
                         skillsById[id].base == null
-                          ? 'â€”'
+                          ? '—'
                           : '+' +
                             Math.max(0, skillLevel(id) - 1) *
                               skillsById[id].perLevel +
@@ -2410,77 +2981,20 @@ watch(
           v-if="editTab === 'equipment'"
           class="panel equipment-editor"
         >
-          <h2>Equipment</h2>
-          <button
-            type="button"
-            @click="equipmentCatalogOpen = true"
-          >
-            Browse Equipment Catalog
-          </button>
+          <header class="equipment-editor-heading">
+            <h2>Equipment</h2>
+            <button
+              type="button"
+              @click="openEquipmentCatalog"
+            >
+              Browse Armory
+            </button>
+          </header>
           <p>
             Add the equipment the character owns. Combat-use values such as
             ammunition and current armor or vehicle durability are tracked
             separately in Play mode.
           </p>
-          <section class="equipment-section owned-assets-editor">
-            <header>
-              <div>
-                <h3>Owned stat-bearing assets</h3>
-                <p>
-                  Power armor, giant robots, and other catalog assets are
-                  available to every character.
-                </p>
-              </div>
-              <button
-                type="button"
-                @click="addOwnedAsset"
-              >
-                + Add Asset
-              </button>
-            </header>
-            <article
-              v-for="(owned, index) in state.ownedAssets"
-              :key="owned.id"
-              class="equipment-edit-card"
-            >
-              <div class="equipment-fields">
-                <label class="required-field"
-                  ><span>{{ owned.requirementLabel || 'Catalog asset' }}</span
-                  ><select
-                    v-model="owned.catalogId"
-                    required
-                    @change="selectOwnedAsset(owned)"
-                  >
-                    <option value="">Choose an asset</option>
-                    <optgroup
-                      v-for="type in owned.requiredType
-                        ? [owned.requiredType]
-                        : [...new Set(assetCatalog.map((asset) => asset.type))]"
-                      :key="type"
-                      :label="type.replace(/-/g, ' ')"
-                    >
-                      <option
-                        v-for="asset in assetsByType(type)"
-                        :key="asset.id"
-                        :value="asset.id"
-                      >
-                        {{ asset.name }}
-                      </option>
-                    </optgroup>
-                  </select></label
-                ><label
-                  ><span>Owned name</span><input v-model="owned.name"
-                /></label>
-              </div>
-              <button
-                type="button"
-                class="danger equipment-remove"
-                @click="removeOwnedAsset(index)"
-              >
-                Remove
-              </button>
-            </article>
-          </section>
           <section
             v-for="section in equipmentSections"
             :key="section.id"
@@ -2499,52 +3013,223 @@ watch(
                 + Add {{ section.singular }}
               </button>
             </header>
+            <section
+              v-if="startingChoicesFor(section.id).length"
+              class="starting-equipment-choices"
+            >
+              <h4>Required {{ section.singular.toLowerCase() }} choices</h4>
+              <div class="class-choice-grid">
+                <div
+                  v-for="choice in startingChoicesFor(section.id)"
+                  :key="choice.item.id"
+                  :class="{
+                    'needs-choice': !String(choice.item.name || '').trim(),
+                  }"
+                >
+                  <span>{{ choice.item.choice.prompt }}</span>
+                  <button
+                    type="button"
+                    @click="openStartingEquipmentChoice(choice)"
+                  >
+                    {{
+                      choice.item.name
+                        ? `Change ${choice.item.name}`
+                        : `Choose ${section.singular}`
+                    }}
+                  </button>
+                </div>
+              </div>
+            </section>
             <p
-              v-if="!state.equipment[section.id].length"
+              v-if="
+                state.equipment[section.id].every(
+                  (item) => item.choice && !item.catalogSelectionId,
+                )
+              "
               class="empty-equipment"
             >
-              No {{ section.label.toLowerCase() }} added.
+              No additional {{ section.label.toLowerCase() }} added.
             </p>
+            <div
+              v-if="
+                section.id === 'weapons' &&
+                state.equipment.weapons.some(
+                  (item) => !item.choice || item.catalogSelectionId,
+                )
+              "
+              class="weapon-roster-heading"
+              aria-hidden="true"
+            >
+              <span>Weapon</span>
+              <span>Damage</span>
+              <span>Range</span>
+              <span>Ammunition</span>
+            </div>
             <article
               v-for="(item, index) in state.equipment[section.id]"
+              v-show="!item.choice || item.catalogSelectionId"
               :key="item.id"
               class="equipment-edit-card"
+              :class="{ 'weapon-roster-card': section.id === 'weapons' }"
             >
-              <CatalogEntryDetails
-                v-if="item.statistics?.length"
-                :entry="item"
-                compact
-              />
-              <div class="equipment-fields">
-                <label
-                  v-for="[key, label, type, help] in section.fields"
-                  :key="key"
-                  v-tooltip="help"
-                  :class="{
-                    'wide-field': type === 'textarea',
-                    'required-field': key === 'name',
-                    'needs-choice':
-                      key === 'name' && !String(item.name || '').trim(),
-                  }"
-                  ><span>{{ label }}</span
-                  ><textarea
-                    v-if="type === 'textarea'"
-                    v-model="item[key]"
-                    rows="2"
-                  ></textarea
-                  ><input
-                    v-else
-                    v-model="item[key]"
-                    :type="type"
-                    :min="type === 'number' ? 0 : undefined"
-                    :required="key === 'name'"
-                /></label>
-              </div>
+              <details class="equipment-card-disclosure">
+                <summary
+                  v-if="section.id === 'weapons'"
+                  class="weapon-roster-row"
+                >
+                  <span class="weapon-roster-name">
+                    <strong>{{ item.name || 'Unnamed weapon' }}</strong>
+                    <small>{{
+                      item.subcategory || item.category || 'Weapon'
+                    }}</small>
+                  </span>
+                  <span data-label="Damage">{{ item.damage || '—' }}</span>
+                  <span data-label="Range">{{ item.range || '—' }}</span>
+                  <span
+                    data-label="Ammunition"
+                    class="weapon-roster-ammo"
+                  >
+                    {{ equipmentStatus(item).ammo
+                    }}<template v-if="item.ammoMax">
+                      / {{ item.ammoMax }}</template
+                    >
+                  </span>
+                </summary>
+                <summary
+                  v-else
+                  class="equipment-simple-summary"
+                >
+                  <strong>{{
+                    item.name || `Unnamed ${section.singular}`
+                  }}</strong>
+                  <span v-if="item.quantity">Quantity {{ item.quantity }}</span>
+                  <span v-else-if="item.category">{{ item.category }}</span>
+                </summary>
+                <CatalogEntryDetails
+                  v-if="item.statistics?.length"
+                  :entry="item"
+                  compact
+                />
+                <div
+                  v-if="!item.statistics?.length"
+                  class="equipment-fields"
+                >
+                  <label
+                    v-for="[key, label, type, help] in section.fields"
+                    :key="key"
+                    v-tooltip="help"
+                    :class="{
+                      'wide-field': type === 'textarea',
+                      'required-field': key === 'name',
+                      'needs-choice':
+                        key === 'name' && !String(item.name || '').trim(),
+                    }"
+                    ><span>{{ label }}</span
+                    ><textarea
+                      v-if="type === 'textarea'"
+                      v-model="item[key]"
+                      rows="2"
+                    ></textarea
+                    ><input
+                      v-else
+                      v-model="item[key]"
+                      :type="type"
+                      :min="type === 'number' ? 0 : undefined"
+                      :required="key === 'name'"
+                  /></label>
+                </div>
+                <div
+                  v-else
+                  class="equipment-fields catalog-character-fields"
+                >
+                  <label v-if="section.id === 'weapons'">
+                    <span>Current ammunition</span>
+                    <span class="tracker-line">
+                      <input
+                        v-model.number="equipmentStatus(item).ammo"
+                        type="number"
+                        min="0"
+                        :max="item.ammoMax || undefined"
+                      />
+                      <strong v-if="item.ammoMax">/ {{ item.ammoMax }}</strong>
+                    </span>
+                  </label>
+                  <label class="wide-field">
+                    <span>Character notes</span>
+                    <textarea
+                      v-model="item.notes"
+                      rows="2"
+                    ></textarea>
+                  </label>
+                </div>
+                <button
+                  v-tooltip="equipmentActionTooltip('remove', section)"
+                  type="button"
+                  class="danger equipment-remove"
+                  @click="removeEquipment(section.id, index)"
+                >
+                  Remove
+                </button>
+              </details>
+            </article>
+          </section>
+        </section>
+
+        <section
+          v-if="editTab === 'magic'"
+          class="panel spellbook"
+        >
+          <header class="spellbook-heading">
+            <div>
+              <h2>Known spells</h2>
+              <p>
+                Invocations are organized by level and alphabetized by name.
+              </p>
+            </div>
+            <button
+              type="button"
+              @click="spellPickerOpen = true"
+            >
+              Browse Invocations
+            </button>
+          </header>
+          <p
+            v-if="!knownSpellGroups.length"
+            class="empty-equipment"
+          >
+            No spells have been added.
+          </p>
+          <section
+            v-for="group in knownSpellGroups"
+            :key="group.level"
+            class="spell-level-group"
+          >
+            <h3>Level {{ group.level }}</h3>
+            <div
+              class="spellbook-table-heading"
+              aria-hidden="true"
+            >
+              <span>Name</span><span>Cost</span><span>Level</span><span></span>
+            </div>
+            <article
+              v-for="spell in group.entries"
+              :key="spell.id"
+              class="spellbook-row"
+            >
               <button
-                v-tooltip="equipmentActionTooltip('remove', section)"
                 type="button"
-                class="danger equipment-remove"
-                @click="removeEquipment(section.id, index)"
+                class="spellbook-summary"
+                @click="openSpellDetail(spell)"
+              >
+                <strong>{{ spell.name }}</strong>
+                <span>{{ spell.cost }}</span>
+                <span>{{ spell.level }}</span>
+              </button>
+              <button
+                type="button"
+                class="danger"
+                :aria-label="`Remove ${spell.name}`"
+                @click="removeKnownSpell(spell.id)"
               >
                 Remove
               </button>
@@ -2576,81 +3261,84 @@ watch(
       v-else
       class="play-sheet"
     >
-      <section class="panel play-identity">
-        <div>
-          <p class="eyebrow">Play mode</p>
-          <h2>{{ state.identity.name || 'Unnamed Character' }}</h2>
-          <p>
-            {{ activeOcc?.name || state.identity.occupation || 'No class' }} ·
-            Level {{ state.level }} ·
-            {{ state.identity.race || 'Race not set' }} ·
-            {{ state.identity.alignment || 'Alignment not set' }}
-          </p>
-        </div>
-        <button
-          class="secondary"
-          @click="mode = 'edit'"
-        >
-          Edit character
-        </button>
-      </section>
-      <section class="panel">
-        <h2>Live status</h2>
-        <div class="play-trackers">
-          <label v-tooltip="`Current Hit Points. Maximum: ${derived.hp}`"
-            ><span>HP current / max</span
-            ><span class="tracker-line"
-              ><input
-                v-model.number="state.play.hp"
-                type="number"
-              /><strong>/ {{ derived.hp }}</strong></span
-            ></label
-          ><label v-tooltip="`Current Physical S.D.C. Maximum: ${derived.sdc}`"
-            ><span>S.D.C. current / max</span
-            ><span class="tracker-line"
-              ><input
-                v-model.number="state.play.sdc"
-                type="number"
-              /><strong>/ {{ derived.sdc }}</strong></span
-            ></label
-          ><label
-            v-if="activeOccMdc"
-            v-tooltip="'Current class-specific main-body M.D.C.'"
-            ><span>Main-body M.D.C.</span
-            ><span class="tracker-line"
-              ><input
-                v-model.number="state.play.mdc"
-                type="number"
-              /><strong>/ {{ activeOccMdc.mainBody }}</strong></span
-            ></label
-          ><label
-            v-if="activeOccMdc"
-            v-tooltip="'Current class-specific external armor M.D.C.'"
-            ><span>Armor M.D.C.</span
-            ><span class="tracker-line"
-              ><input
-                v-model.number="state.play.armorMdc"
-                type="number"
-              /><strong>/ {{ activeOccMdc.armor }}</strong></span
-            ></label
-          ><label
-            v-for="key in ['isp', 'ppe', 'chi']"
-            :key="key"
-            v-tooltip="
-              `Current ${key.toUpperCase()}. Maximum: ${state.resources[key]}`
-            "
-            ><span>{{ key.toUpperCase() }} current / max</span
-            ><span class="tracker-line"
-              ><input
-                v-model.number="state.play[key]"
-                type="number"
-              /><strong>/ {{ state.resources[key] }}</strong></span
-            ></label
+      <div class="play-column play-column-left">
+        <section class="panel play-identity">
+          <div>
+            <p class="eyebrow">Play mode</p>
+            <h2>{{ state.identity.name || 'Unnamed Character' }}</h2>
+            <p class="identity-chips">
+              <span>{{
+                activeOcc?.name || state.identity.occupation || 'No class'
+              }}</span>
+              <span>Level {{ state.level }}</span>
+              <span>{{ state.identity.race || 'Race not set' }}</span>
+              <span>{{ state.identity.alignment || 'Alignment not set' }}</span>
+            </p>
+          </div>
+          <button
+            class="secondary"
+            @click="mode = 'edit'"
           >
-        </div>
-      </section>
-      <div class="play-columns">
-        <section class="panel">
+            Edit character
+          </button>
+        </section>
+        <section class="panel play-live-status">
+          <h2>Live status</h2>
+          <div class="play-trackers">
+            <label v-tooltip="`Current Hit Points. Maximum: ${derived.hp}`"
+              ><span>HP current / max</span
+              ><span class="tracker-line"
+                ><input
+                  v-model.number="state.play.hp"
+                  type="number"
+                /><strong>/ {{ derived.hp }}</strong></span
+              ></label
+            ><label
+              v-tooltip="`Current Physical S.D.C. Maximum: ${derived.sdc}`"
+              ><span>S.D.C. current / max</span
+              ><span class="tracker-line"
+                ><input
+                  v-model.number="state.play.sdc"
+                  type="number"
+                /><strong>/ {{ derived.sdc }}</strong></span
+              ></label
+            ><label
+              v-if="activeOccMdc"
+              v-tooltip="'Current class-specific main-body M.D.C.'"
+              ><span>Main-body M.D.C.</span
+              ><span class="tracker-line"
+                ><input
+                  v-model.number="state.play.mdc"
+                  type="number"
+                /><strong>/ {{ activeOccMdc.mainBody }}</strong></span
+              ></label
+            ><label
+              v-if="activeOccMdc"
+              v-tooltip="'Current class-specific external armor M.D.C.'"
+              ><span>Armor M.D.C.</span
+              ><span class="tracker-line"
+                ><input
+                  v-model.number="state.play.armorMdc"
+                  type="number"
+                /><strong>/ {{ activeOccMdc.armor }}</strong></span
+              ></label
+            ><label
+              v-for="key in ['isp', 'ppe', 'chi']"
+              :key="key"
+              v-tooltip="
+                `Current ${key.toUpperCase()}. Maximum: ${state.resources[key]}`
+              "
+              ><span>{{ key.toUpperCase() }} current / max</span
+              ><span class="tracker-line"
+                ><input
+                  v-model.number="state.play[key]"
+                  type="number"
+                /><strong>/ {{ state.resources[key] }}</strong></span
+              ></label
+            >
+          </div>
+        </section>
+        <section class="panel play-attributes">
           <h2>Attributes</h2>
           <div class="play-stat-grid">
             <output
@@ -2661,7 +3349,108 @@ watch(
             >
           </div>
         </section>
-        <section class="panel">
+        <section class="panel play-movement">
+          <h2>Movement & saves</h2>
+          <div class="play-stat-grid">
+            <output
+              ><span>Running</span><strong>{{ derived.move.mph }} mph</strong
+              ><small>{{ derived.move.perMelee }} ft/melee</small></output
+            ><output
+              ><span>Carry / lift</span
+              ><strong
+                >{{ derived.weight.carry }} /
+                {{ derived.weight.lift }} lb</strong
+              ></output
+            ><output
+              ><span>Magic</span><strong>+{{ derived.magic }}</strong></output
+            ><output
+              ><span>Poison</span><strong>+{{ derived.poison }}</strong></output
+            ><output
+              ><span>Possession</span
+              ><strong>+{{ derived.possession }}</strong></output
+            ><output
+              ><span>Psionics</span
+              ><strong>+{{ derived.psionics }}</strong></output
+            ><output
+              ><span>Insanity</span
+              ><strong>+{{ derived.insanity }}</strong></output
+            ><output
+              ><span>Coma / death</span
+              ><strong>+{{ derived.coma }}%</strong></output
+            >
+          </div>
+        </section>
+        <section class="panel play-languages">
+          <h2>Languages</h2>
+          <div class="play-skill-grid">
+            <div
+              v-for="record in state.languages.spoken"
+              :key="'spoken-' + record.type"
+              tabindex="0"
+            >
+              <span>Spoken: {{ record.type }}</span
+              ><strong>{{ languageTotal('spoken', record) }}%</strong>
+            </div>
+            <div
+              v-for="record in state.languages.literacy"
+              :key="'literacy-' + record.type"
+              tabindex="0"
+            >
+              <span>Literacy: {{ record.type }}</span
+              ><strong>{{ languageTotal('literacy', record) }}%</strong>
+            </div>
+          </div>
+        </section>
+        <section class="panel play-skills">
+          <h2>Trained skills</h2>
+          <template v-if="trainedPercentageSkills.length">
+            <h3>Percentage skills</h3>
+            <div class="play-percentage-skills">
+              <div
+                v-for="skill in trainedPercentageSkills"
+                :key="skill.id"
+              >
+                <span
+                  v-tooltip="descriptionFor(skill.id)"
+                  tabindex="0"
+                  >{{ skill.name }}</span
+                >
+                <strong
+                  v-tooltip="skillTotalTooltip(skill.id)"
+                  tabindex="0"
+                  >{{ totalFor(skill.id) }}%</strong
+                >
+              </div>
+            </div>
+          </template>
+          <template v-if="trainedSpecialSkills.length">
+            <h3>Special skills</h3>
+            <div class="play-special-skills">
+              <div
+                v-for="skill in trainedSpecialSkills"
+                :key="skill.id"
+              >
+                <span
+                  v-tooltip="descriptionFor(skill.id)"
+                  tabindex="0"
+                  >{{ skill.name }}</span
+                >
+                <strong>Special</strong>
+              </div>
+            </div>
+          </template>
+          <p
+            v-if="
+              !trainedPercentageSkills.length && !trainedSpecialSkills.length
+            "
+          >
+            No trained skills.
+          </p>
+        </section>
+      </div>
+
+      <div class="play-column play-column-middle">
+        <section class="panel play-combat">
           <h2>Combat</h2>
           <div class="play-stat-grid">
             <output
@@ -2687,358 +3476,318 @@ watch(
             >
           </div>
         </section>
-      </div>
-      <section class="panel">
-        <h2>Movement & saves</h2>
-        <div class="play-stat-grid">
-          <output
-            ><span>Running</span><strong>{{ derived.move.mph }} mph</strong
-            ><small>{{ derived.move.perMelee }} ft/melee</small></output
-          ><output
-            ><span>Carry / lift</span
-            ><strong
-              >{{ derived.weight.carry }} / {{ derived.weight.lift }} lb</strong
-            ></output
-          ><output
-            ><span>Magic</span><strong>+{{ derived.magic }}</strong></output
-          ><output
-            ><span>Poison</span><strong>+{{ derived.poison }}</strong></output
-          ><output
-            ><span>Possession</span
-            ><strong>+{{ derived.possession }}</strong></output
-          ><output
-            ><span>Psionics</span
-            ><strong>+{{ derived.psionics }}</strong></output
-          ><output
-            ><span>Insanity</span
-            ><strong>+{{ derived.insanity }}</strong></output
-          ><output
-            ><span>Coma / death</span
-            ><strong>+{{ derived.coma }}%</strong></output
+        <section class="panel play-equipment">
+          <h2>Equipment</h2>
+          <template
+            v-for="section in equipmentSections"
+            :key="section.id"
           >
-        </div>
-      </section>
-      <section class="panel play-equipment">
-        <h2>Equipment</h2>
-        <section
-          v-if="state.ownedAssets.some((owned) => ownedAssetStats(owned))"
-          class="play-equipment-section owned-asset-play"
-        >
-          <h3>Owned vehicles, robots & power armor</h3>
-          <div class="play-equipment-grid">
-            <article
-              v-for="owned in state.ownedAssets.filter((item) =>
-                ownedAssetStats(item),
-              )"
-              :key="owned.id"
+            <div
+              v-if="populatedEquipment(section.id).length"
+              class="play-equipment-section"
             >
-              <header>
-                <strong>{{ owned.name }}</strong
-                ><span>{{
-                  ownedAssetStats(owned).type.replace(/-/g, ' ')
-                }}</span>
-              </header>
-              <dl>
-                <dt>Main M.D.C.</dt>
-                <dd>
-                  <input
-                    v-model.number="owned.current.mainMdc"
-                    type="number"
-                    min="0"
-                  />
-                  / {{ ownedAssetStats(owned).mainMdc }}
-                </dd>
-                <dt>Crew</dt>
-                <dd>{{ ownedAssetStats(owned).crew }}</dd>
-                <dt>Speed</dt>
-                <dd>{{ ownedAssetStats(owned).speed }}</dd>
-                <dt>Strength</dt>
-                <dd>{{ ownedAssetStats(owned).strength }}</dd>
-              </dl>
-              <details>
-                <summary>Locations & weapons</summary>
-                <p
-                  v-for="(mdc, location) in ownedAssetStats(owned).locations"
-                  :key="location"
-                >
-                  {{ location }}: {{ mdc }} M.D.C.
-                </p>
-                <p
-                  v-for="weapon in ownedAssetStats(owned).weapons"
-                  :key="weapon.id"
-                >
-                  <strong>{{ weapon.name }}</strong
-                  >: {{ weapon.damage }}; {{ weapon.range }}; payload
-                  <label
-                    v-if="typeof weapon.payload === 'number'"
-                    class="asset-ammo"
-                    ><span>remaining</span
-                    ><input
-                      v-model.number="owned.current.ammo[weapon.id]"
-                      type="number"
-                      min="0"
-                      :max="weapon.payload"
-                    />
-                    / {{ weapon.payload }}</label
-                  ><span v-else>{{ weapon.payload }}</span>
-                </p>
-              </details>
-              <small
-                >{{ ownedAssetStats(owned).source.book }}, pp.
-                {{ ownedAssetStats(owned).source.pages }}</small
+              <h3>{{ section.label }}</h3>
+              <div
+                v-if="section.id === 'weapons'"
+                class="weapon-roster-heading"
+                aria-hidden="true"
               >
-            </article>
-          </div>
-        </section>
-        <template
-          v-for="section in equipmentSections"
-          :key="section.id"
-        >
-          <div
-            v-if="populatedEquipment(section.id).length"
-            class="play-equipment-section"
-          >
-            <h3>{{ section.label }}</h3>
-            <div class="play-equipment-grid">
-              <article
-                v-for="item in populatedEquipment(section.id)"
-                :key="item.id"
-                v-tooltip="item.notes || carriedEquipmentTooltip(section)"
-                tabindex="0"
-                :class="{ 'has-full-details': item.statistics?.length }"
-                @click="openEquipmentDetail(item)"
-                @keydown="equipmentDetailKeydown($event, item)"
+                <span>Weapon</span>
+                <span>Damage</span>
+                <span>Range</span>
+                <span>Ammunition</span>
+              </div>
+              <div
+                class="play-equipment-grid"
+                :class="{ 'weapon-roster': section.id === 'weapons' }"
               >
-                <template v-if="item.statistics?.length">
-                  <header>
-                    <strong>{{ item.name }}</strong>
-                    <span>View details</span>
-                  </header>
-                  <dl class="catalog-equipment-summary">
-                    <template
-                      v-for="[label, value] in [
-                        [
-                          'Damage',
+                <article
+                  v-for="item in populatedEquipment(section.id)"
+                  :key="item.id"
+                  v-tooltip="item.notes || carriedEquipmentTooltip(section)"
+                  :tabindex="section.id === 'weapons' ? undefined : 0"
+                  :class="{
+                    'has-full-details': item.statistics?.length,
+                    'weapon-roster-card': section.id === 'weapons',
+                  }"
+                  @click="section.id !== 'weapons' && openEquipmentDetail(item)"
+                  @keydown="
+                    section.id !== 'weapons' &&
+                    equipmentDetailKeydown($event, item)
+                  "
+                >
+                  <details class="equipment-card-disclosure">
+                    <summary
+                      v-if="section.id === 'weapons'"
+                      class="weapon-roster-row"
+                    >
+                      <span class="weapon-roster-name">
+                        <strong>{{ item.name || 'Unnamed weapon' }}</strong>
+                        <small>{{
+                          item.subcategory || item.category || 'Weapon'
+                        }}</small>
+                      </span>
+                      <span data-label="Damage">
+                        {{
+                          item.damage ||
                           catalogStatistic(
                             item,
                             'Mega-Damage',
                             'S.D.C. Damage',
-                          ),
-                        ],
-                        ['Payload', catalogStatistic(item, 'Payload')],
-                        ['Range', catalogStatistic(item, 'Effective Range')],
-                        [
-                          'Rate of fire',
-                          catalogStatistic(item, 'Rate of Fire', 'Rate of Use'),
-                        ],
-                      ]"
-                      :key="label"
+                            'Damage',
+                          ) ||
+                          '—'
+                        }}
+                      </span>
+                      <span data-label="Range">
+                        {{
+                          item.range ||
+                          catalogStatistic(item, 'Effective Range', 'Range') ||
+                          '—'
+                        }}
+                      </span>
+                      <span
+                        data-label="Ammunition"
+                        class="weapon-roster-ammo"
+                      >
+                        {{ equipmentStatus(item).ammo
+                        }}<template v-if="item.ammoMax">
+                          / {{ item.ammoMax }}</template
+                        >
+                      </span>
+                    </summary>
+                    <summary
+                      v-else
+                      class="equipment-simple-summary"
                     >
-                      <template v-if="value">
-                        <dt>{{ label }}</dt>
-                        <dd>{{ value }}</dd>
-                      </template>
+                      <strong>{{
+                        item.name || `Unnamed ${section.singular}`
+                      }}</strong>
+                      <span v-if="item.quantity"
+                        >Quantity {{ item.quantity }}</span
+                      >
+                      <span v-else-if="item.category">{{ item.category }}</span>
+                    </summary>
+                    <CatalogEntryDetails
+                      v-if="section.id === 'weapons' && item.statistics?.length"
+                      :entry="item"
+                      compact
+                    />
+                    <template v-else-if="item.statistics?.length">
+                      <header>
+                        <strong>{{ item.name }}</strong>
+                        <span>View details</span>
+                      </header>
+                      <dl class="catalog-equipment-summary">
+                        <template
+                          v-for="[label, value] in [
+                            [
+                              'Damage',
+                              catalogStatistic(
+                                item,
+                                'Mega-Damage',
+                                'S.D.C. Damage',
+                              ),
+                            ],
+                            ['Payload', catalogStatistic(item, 'Payload')],
+                            [
+                              'Range',
+                              catalogStatistic(item, 'Effective Range'),
+                            ],
+                            [
+                              'Rate of fire',
+                              catalogStatistic(
+                                item,
+                                'Rate of Fire',
+                                'Rate of Use',
+                              ),
+                            ],
+                          ]"
+                          :key="label"
+                        >
+                          <template v-if="value">
+                            <dt>{{ label }}</dt>
+                            <dd>{{ value }}</dd>
+                          </template>
+                        </template>
+                      </dl>
                     </template>
-                  </dl>
-                </template>
-                <header v-else>
-                  <strong>{{
-                    item.name || `Unnamed ${section.singular}`
-                  }}</strong
-                  ><span v-if="item.category">{{ item.category }}</span>
-                </header>
-                <dl v-if="!item.statistics?.length">
-                  <template
-                    v-for="[key, label, type] in section.fields.filter(
-                      (field) =>
-                        !['name', 'category', 'notes'].includes(field[0]),
-                    )"
-                    :key="key"
-                    ><template
+                    <header v-else>
+                      <strong>{{
+                        item.name || `Unnamed ${section.singular}`
+                      }}</strong
+                      ><span v-if="item.category">{{ item.category }}</span>
+                    </header>
+                    <dl v-if="!item.statistics?.length">
+                      <template
+                        v-for="[key, label, type] in section.fields.filter(
+                          (field) =>
+                            !['name', 'category', 'notes'].includes(field[0]),
+                        )"
+                        :key="key"
+                        ><template
+                          v-if="
+                            item[key] !== '' &&
+                            item[key] != null &&
+                            !(type === 'number' && Number(item[key]) === 0)
+                          "
+                          ><dt>{{ label }}</dt>
+                          <dd>{{ item[key] }}</dd></template
+                        ></template
+                      >
+                    </dl>
+                    <div
+                      v-if="section.id === 'weapons' && Number(item.ammoMax)"
+                      class="equipment-tracker"
+                      @click.stop
+                    >
+                      <label
+                        v-tooltip="
+                          equipmentMaximumTooltip(
+                            'ammunition, payload, or charges',
+                            item.ammoMax,
+                          )
+                        "
+                        ><span>Ammo current / max</span
+                        ><span class="tracker-line"
+                          ><input
+                            v-model.number="equipmentStatus(item).ammo"
+                            type="number"
+                            min="0"
+                          /><strong>/ {{ item.ammoMax }}</strong></span
+                        ></label
+                      >
+                    </div>
+                    <div
                       v-if="
-                        item[key] !== '' &&
-                        item[key] != null &&
-                        !(type === 'number' && Number(item[key]) === 0)
+                        ['armor', 'vehicles'].includes(section.id) &&
+                        (Number(item.maxSdc) || Number(item.maxMdc))
                       "
-                      ><dt>{{ label }}</dt>
-                      <dd>{{ item[key] }}</dd></template
-                    ></template
-                  >
-                </dl>
-                <div
-                  v-if="section.id === 'weapons' && Number(item.ammoMax)"
-                  class="equipment-tracker"
-                  @click.stop
-                >
-                  <label
-                    v-tooltip="
-                      equipmentMaximumTooltip(
-                        'ammunition, payload, or charges',
-                        item.ammoMax,
-                      )
-                    "
-                    ><span>Ammo current / max</span
-                    ><span class="tracker-line"
-                      ><input
-                        v-model.number="equipmentStatus(item).ammo"
-                        type="number"
-                        min="0"
-                      /><strong>/ {{ item.ammoMax }}</strong></span
-                    ></label
-                  >
-                </div>
-                <div
-                  v-if="
-                    ['armor', 'vehicles'].includes(section.id) &&
-                    (Number(item.maxSdc) || Number(item.maxMdc))
-                  "
-                  class="equipment-trackers"
-                  @click.stop
-                >
-                  <label
-                    v-if="Number(item.maxSdc)"
-                    v-tooltip="
-                      equipmentMaximumTooltip(
-                        `${section.singular.toLowerCase()} S.D.C`,
-                        item.maxSdc,
-                      )
-                    "
-                    ><span>S.D.C. current / max</span
-                    ><span class="tracker-line"
-                      ><input
-                        v-model.number="equipmentStatus(item).sdc"
-                        type="number"
-                        min="0"
-                      /><strong>/ {{ item.maxSdc }}</strong></span
-                    ></label
-                  >
-                  <label
-                    v-if="Number(item.maxMdc)"
-                    v-tooltip="
-                      equipmentMaximumTooltip(
-                        `${section.singular.toLowerCase()} M.D.C`,
-                        item.maxMdc,
-                      )
-                    "
-                    ><span>M.D.C. current / max</span
-                    ><span class="tracker-line"
-                      ><input
-                        v-model.number="equipmentStatus(item).mdc"
-                        type="number"
-                        min="0"
-                      /><strong>/ {{ item.maxMdc }}</strong></span
-                    ></label
-                  >
-                </div>
-                <p v-if="item.notes">{{ item.notes }}</p>
-              </article>
+                      class="equipment-trackers"
+                      @click.stop
+                    >
+                      <label
+                        v-if="Number(item.maxSdc)"
+                        v-tooltip="
+                          equipmentMaximumTooltip(
+                            `${section.singular.toLowerCase()} S.D.C`,
+                            item.maxSdc,
+                          )
+                        "
+                        ><span>S.D.C. current / max</span
+                        ><span class="tracker-line"
+                          ><input
+                            v-model.number="equipmentStatus(item).sdc"
+                            type="number"
+                            min="0"
+                          /><strong>/ {{ item.maxSdc }}</strong></span
+                        ></label
+                      >
+                      <label
+                        v-if="Number(item.maxMdc)"
+                        v-tooltip="
+                          equipmentMaximumTooltip(
+                            `${section.singular.toLowerCase()} M.D.C`,
+                            item.maxMdc,
+                          )
+                        "
+                        ><span>M.D.C. current / max</span
+                        ><span class="tracker-line"
+                          ><input
+                            v-model.number="equipmentStatus(item).mdc"
+                            type="number"
+                            min="0"
+                          /><strong>/ {{ item.maxMdc }}</strong></span
+                        ></label
+                      >
+                    </div>
+                    <p v-if="item.notes">{{ item.notes }}</p>
+                  </details>
+                </article>
+              </div>
             </div>
-          </div>
-        </template>
-        <p
-          v-if="
-            equipmentSections.every(
-              (section) => !populatedEquipment(section.id).length,
-            )
-          "
-          class="empty-equipment"
-        >
-          No equipment has been added in Create/Edit mode.
-        </p>
-      </section>
-      <section class="panel">
-        <h2>Languages</h2>
-        <div class="play-skill-grid">
-          <div
-            v-for="record in state.languages.spoken"
-            :key="'spoken-' + record.type"
-            tabindex="0"
+          </template>
+          <p
+            v-if="
+              equipmentSections.every(
+                (section) => !populatedEquipment(section.id).length,
+              )
+            "
+            class="empty-equipment"
           >
-            <span>Spoken: {{ record.type }}</span
-            ><strong>{{ languageTotal('spoken', record) }}%</strong>
-          </div>
-          <div
-            v-for="record in state.languages.literacy"
-            :key="'literacy-' + record.type"
-            tabindex="0"
+            No equipment has been added in Create/Edit mode.
+          </p>
+        </section>
+      </div>
+
+      <div class="play-column play-column-right">
+        <section class="panel spellbook play-spellbook">
+          <header class="spellbook-heading">
+            <div>
+              <h2>Known spells</h2>
+              <p>Open an invocation to review its complete rules.</p>
+            </div>
+          </header>
+          <p
+            v-if="!knownSpellGroups.length"
+            class="empty-equipment"
           >
-            <span>Literacy: {{ record.type }}</span
-            ><strong>{{ languageTotal('literacy', record) }}%</strong>
-          </div>
-        </div>
-      </section>
-      <section class="panel play-skills">
-        <h2>Trained skills</h2>
-        <template v-if="trainedPercentageSkills.length">
-          <h3>Percentage skills</h3>
-          <div class="play-percentage-skills">
+            No known spells.
+          </p>
+          <section
+            v-for="group in knownSpellGroups"
+            :key="group.level"
+            class="spell-level-group"
+          >
+            <h3>Level {{ group.level }}</h3>
             <div
-              v-for="skill in trainedPercentageSkills"
-              :key="skill.id"
+              class="spellbook-table-heading play"
+              aria-hidden="true"
             >
-              <span
-                v-tooltip="descriptionFor(skill.id)"
-                tabindex="0"
-                >{{ skill.name }}</span
-              >
-              <strong
-                v-tooltip="skillTotalTooltip(skill.id)"
-                tabindex="0"
-                >{{ totalFor(skill.id) }}%</strong
-              >
+              <span>Name</span><span>Cost</span><span>Level</span>
             </div>
-          </div>
-        </template>
-        <template v-if="trainedSpecialSkills.length">
-          <h3>Special skills</h3>
-          <div class="play-special-skills">
-            <div
-              v-for="skill in trainedSpecialSkills"
-              :key="skill.id"
+            <button
+              v-for="spell in group.entries"
+              :key="spell.id"
+              type="button"
+              class="spellbook-summary play"
+              @click="openSpellDetail(spell)"
             >
-              <span
-                v-tooltip="descriptionFor(skill.id)"
-                tabindex="0"
-                >{{ skill.name }}</span
-              >
-              <strong>Special</strong>
-            </div>
-          </div>
-        </template>
-        <p
-          v-if="!trainedPercentageSkills.length && !trainedSpecialSkills.length"
+              <strong>{{ spell.name }}</strong>
+              <span>{{ spell.cost }}</span>
+              <span>{{ spell.level }}</span>
+            </button>
+          </section>
+        </section>
+        <section
+          v-if="activeOcc"
+          class="panel"
         >
-          No trained skills.
-        </p>
-      </section>
-      <section
-        v-if="activeOcc"
-        class="panel"
-      >
-        <h2>Class abilities</h2>
-        <ul class="ability-list">
-          <li
-            v-for="ability in activeOcc.abilities"
-            :key="ability"
-            v-tooltip="ability"
-            tabindex="0"
-          >
-            {{ ability }}
-          </li>
-        </ul>
-      </section>
-      <section class="panel">
-        <h2>Character record</h2>
-        <div class="play-notes">
-          <article
-            v-for="(value, key) in state.notes"
-            :key="key"
-          >
-            <h3>{{ key }}</h3>
-            <p>{{ value || '—' }}</p>
-          </article>
-        </div>
-      </section>
+          <h2>Class abilities</h2>
+          <ul class="ability-list">
+            <li
+              v-for="ability in activeOcc.abilities"
+              :key="ability"
+              v-tooltip="ability"
+              tabindex="0"
+            >
+              {{ ability }}
+            </li>
+          </ul>
+        </section>
+        <section class="panel">
+          <h2>Character record</h2>
+          <div class="play-notes">
+            <article
+              v-for="(value, key) in state.notes"
+              :key="key"
+            >
+              <h3>{{ key }}</h3>
+              <p>{{ value || '—' }}</p>
+            </article>
+          </div>
+        </section>
+      </div>
     </section>
 
     <div
@@ -3051,11 +3800,48 @@ watch(
     </div>
     <CatalogPickerModal
       :open="equipmentCatalogOpen"
-      :entries="characterEquipmentCatalog"
-      title="Equipment Catalog"
-      @close="equipmentCatalogOpen = false"
+      :entries="activeEquipmentCatalog"
+      :title="
+        startingEquipmentChoiceTarget?.item.choice.prompt || 'Equipment Catalog'
+      "
+      @close="closeEquipmentCatalog"
       @confirm="addCatalogEquipment"
     />
+    <SpellPickerModal
+      :open="spellPickerOpen"
+      :spells="invocations"
+      :known-ids="state.spells"
+      @close="spellPickerOpen = false"
+      @add="addKnownSpell"
+    />
+    <Teleport to="body">
+      <div
+        v-if="spellDetail"
+        class="spell-picker-backdrop"
+        @mousedown.self="spellDetail = null"
+        @keydown.esc="spellDetail = null"
+      >
+        <section
+          ref="spellDetailDialog"
+          class="spell-detail-modal"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="`${spellDetail.name} spell details`"
+          tabindex="-1"
+        >
+          <header class="spell-modal-heading">
+            <h2>Spell details</h2>
+            <button
+              type="button"
+              @click="spellDetail = null"
+            >
+              Close
+            </button>
+          </header>
+          <SpellDetails :spell="spellDetail" />
+        </section>
+      </div>
+    </Teleport>
     <Teleport to="body">
       <div
         v-if="equipmentDetail"
