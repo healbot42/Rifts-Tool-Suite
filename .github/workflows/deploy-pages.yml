@@ -41,6 +41,9 @@ jobs:
       - name: Install Python development tools
         run: python -m pip install -r requirements-dev.txt
 
+      - name: Install deal bot for tests
+        run: python -m pip install --no-deps -e ./warhammer-deal-bot
+
       - name: Verify and build site
         run: npm run check
 
