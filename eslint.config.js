@@ -6,7 +6,16 @@ import globals from 'globals'
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'public/**', 'tmp/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'public/**',
+      'tmp/**',
+      '**/.pytest_cache/**',
+      '**/.pytest-tmp/**',
+      '**/__pycache__/**',
+      '**/.venv/**',
+    ],
   },
   js.configs.recommended,
   ...pluginVue.configs['flat/recommended'],

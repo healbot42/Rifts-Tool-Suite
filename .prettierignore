@@ -3,6 +3,10 @@ node_modules/
 public/
 tmp/
 output/
+**/.pytest_cache/
+**/.pytest-tmp/
+**/__pycache__/
+**/.venv/
 package-lock.json
 src/data/magic/spell-descriptions.json
 src/data/tw-devices/tw-devices.json

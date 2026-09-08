@@ -1,0 +1,173 @@
+database: data/deals.sqlite3
+price_drop_realert: 5
+reappeared_realert: true
+request_delay_seconds: [1.0, 3.0]
+
+# A product can require deeper discounts for less-preferred conditions; see Argel Tal.
+
+email:
+  enabled: false
+  digest: true
+
+sources:
+  ebay:
+    enabled: true
+    marketplace: EBAY_US
+    limit_per_query: 50
+    allow_3d_prints: false
+  games_workshop:
+    {
+      enabled: false,
+      reason: 'Configured MSRP reference only; no verified public API',
+    }
+  warpfire:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  gamersguild:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  herrick:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  miniature_market:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  valhalla:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  flipside:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  lazarus:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  little_big_wars:
+    {
+      enabled: false,
+      reason: 'No verified public API or approved automated interface',
+    }
+  troll_trader:
+    {
+      enabled: false,
+      reason:
+        'No verified API and destination-aware international shipping required',
+    }
+  reddit_miniswap:
+    {
+      enabled: false,
+      reason:
+        'Requires approved Reddit OAuth API access; HTML search is not used',
+    }
+
+# MSRP values are editable reference inputs. Verify them before enabling alerts.
+products:
+  - id: argel-tal
+    name: Argel Tal
+    aliases: [Argel Tal]
+    queries: ['Argel Tal Horus Heresy']
+    quantity_wanted: 1
+    msrp: 90
+    hard_threshold: 70
+    percent_off_threshold: 25
+    minimum_savings: 15
+    condition_discount_adjustments: { Primed: 10, Painted: 15, Unknown: 10 }
+  - id: gal-vorbak
+    name: Gal Vorbak
+    aliases: [Gal Vorbak Dark Brethren, Dark Brethren]
+    queries: ['Gal Vorbak', 'Gal Vorbak Dark Brethren']
+    quantity_wanted: 2
+    expected_models: 5
+    msrp: 105
+    hard_threshold: 75
+    percent_off_threshold: 25
+    minimum_savings: 15
+  - id: mhara-gal
+    name: Mhara Gal Tainted Dreadnought
+    aliases: [Mhara Gal, Mhara-Gal]
+    queries: ['Mhara Gal', 'Mhara Gal Tainted Dreadnought']
+    quantity_wanted: 2
+    msrp: 170
+    hard_threshold: 125
+    percent_off_threshold: 25
+    minimum_savings: 20
+  - id: saturnine-terminators
+    name: Saturnine Terminator Squad
+    aliases: [Saturnine Terminators, Saturnine Terminator Squad]
+    queries: ['Saturnine Terminator Squad Horus Heresy']
+    quantity_wanted: 1
+    msrp: 65
+    hard_threshold: 48
+    percent_off_threshold: 25
+    minimum_savings: 15
+  - id: sicaran
+    name: Sicaran Battle Tank
+    aliases: [Sicaran, Sicaran Battle Tank]
+    queries: ['Sicaran Battle Tank Horus Heresy']
+    quantity_wanted: 2
+    msrp: 80
+    hard_threshold: 60
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [Omega, Venator, Arcus, Punisher]
+  - id: predator
+    name: Horus Heresy Predator Battle Tank
+    aliases: [Predator Battle Tank, Deimos Pattern Predator]
+    queries: ['Horus Heresy Predator Battle Tank', 'Deimos Predator']
+    quantity_wanted: 2
+    msrp: 70
+    hard_threshold: 52
+    percent_off_threshold: 25
+    minimum_savings: 15
+  - id: mkiv-tactical
+    name: MKIV Tactical Squad
+    aliases: [Mk IV Marines, MK4 Marines, Mark IV Tactical Squad]
+    queries:
+      ['MKIV Tactical Squad Horus Heresy', 'Mark IV Marines Horus Heresy']
+    quantity_wanted: 3
+    expected_models: 20
+    msrp: 85
+    hard_threshold: 64
+    percent_off_threshold: 25
+    minimum_savings: 15
+  - id: melee-weapons
+    name: Horus Heresy Melee Weapons Upgrade Set
+    aliases: [Melee Weapons Upgrade Set]
+    queries: ['Horus Heresy Melee Weapons Upgrade Set']
+    quantity_wanted: 2
+    msrp: 47
+    hard_threshold: 35
+    percent_off_threshold: 25
+    minimum_savings: 10
+  - id: special-weapons
+    name: Horus Heresy Special Weapons Upgrade Set
+    aliases: [Special Weapons Upgrade Set]
+    queries: ['Horus Heresy Special Weapons Upgrade Set']
+    quantity_wanted: 1
+    msrp: 47
+    hard_threshold: 35
+    percent_off_threshold: 25
+    minimum_savings: 10
+  - id: heavy-weapons-lascannons
+    name: Horus Heresy Heavy Weapons Upgrade Set — Lascannons
+    aliases: [Heavy Weapons Upgrade Set Lascannons, Heavy Weapons Lascannons]
+    queries: ['Horus Heresy Heavy Weapons Upgrade Set Lascannons']
+    required_terms: [lascannon]
+    quantity_wanted: 1
+    msrp: 47
+    hard_threshold: 35
+    percent_off_threshold: 25
+    minimum_savings: 10

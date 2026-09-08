@@ -14,6 +14,8 @@ without searching through production code.
   package integrity.
 - `pages/initiative-tracker/`: initiative ordering, ties, and action-pass
   sequencing.
+- `warhammer-deal-bot/`: Python deal matching, pricing, persistence, eBay
+  parsing, and email behavior for the isolated bot subproject.
 - Add future page tests under `pages/<page-name>/`.
 
 ## Commands
@@ -28,6 +30,7 @@ npm run test:tw-calculator
 npm run test:tw-devices
 npm run test:character-sheet
 npm run test:initiative-tracker
+npm run test:deal-bot
 npm run assets:check
 npm run check
 ```

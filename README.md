@@ -1,5 +1,10 @@
 # Rifts Tool Suite
 
+The repository also contains the isolated
+[Warhammer Deal Bot](warhammer-deal-bot/README.md), a Python/eBay monitoring
+utility with its own setup and scheduler instructions. It shares this GitHub
+repository but is not bundled into the static Vue application.
+
 Rifts Tool Suite v0.2.0 is a dark-mode Vue 3 application containing tools for
 Rifts gameplay and Techno-Wizard device creation. It is an unofficial fan
 utility.

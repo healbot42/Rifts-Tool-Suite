@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "format": "prettier --write . && python -m ruff format scripts",
-    "format:check": "prettier --check . && python -m ruff format --check scripts",
+    "format": "prettier --write .github AGENTS.md README.md docs src tests package.json vite.config.js eslint.config.js index.html warhammer-deal-bot/README.md warhammer-deal-bot/config.example.yaml && python -m ruff format scripts warhammer-deal-bot tests/warhammer-deal-bot",
+    "format:check": "prettier --check .github AGENTS.md README.md docs src tests package.json vite.config.js eslint.config.js index.html warhammer-deal-bot/README.md warhammer-deal-bot/config.example.yaml && python -m ruff format --check scripts warhammer-deal-bot tests/warhammer-deal-bot",
     "lint": "npm run lint:web && npm run lint:python",
-    "lint:fix": "eslint . --fix && python -m ruff check --fix scripts",
-    "lint:python": "python -m ruff check scripts",
+    "lint:fix": "eslint . --fix && python -m ruff check --fix scripts warhammer-deal-bot tests/warhammer-deal-bot",
+    "lint:python": "python -m ruff check scripts warhammer-deal-bot tests/warhammer-deal-bot",
     "lint:web": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,9 +19,11 @@
     "test:tw-devices": "vitest run tests/pages/tw-device-browser",
     "test:character-sheet": "vitest run tests/pages/character-sheet",
     "test:initiative-tracker": "vitest run tests/pages/initiative-tracker",
+    "test:deal-bot": "python -m pytest tests/warhammer-deal-bot --basetemp warhammer-deal-bot/.pytest-tmp",
+    "security:secrets": "python scripts/check-secrets.py",
     "catalog:stats": "node scripts/extract-device-statistics.mjs",
     "assets:check": "node scripts/validate-item-assets.mjs",
-    "check": "npm run lint && npm run format:check && npm run assets:check && npm run test && npm run build",
+    "check": "npm run lint && npm run format:check && npm run security:secrets && npm run assets:check && npm run test && npm run test:deal-bot && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
