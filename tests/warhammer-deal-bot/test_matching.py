@@ -29,3 +29,37 @@ def test_mkiv_variants_normalize(gal_vorbak):
     gal_vorbak.name = "MKIV Tactical Squad"
     gal_vorbak.aliases = ["Mark IV Tactical Squad"]
     assert matches_product("Horus Heresy Mk 4 Tactical Squad NIB", gal_vorbak)
+
+
+def test_battle_groups_reject_wrong_editions_and_split_listings():
+    from pathlib import Path
+
+    from warhammer_deal_bot.config import load_config
+
+    config = load_config(
+        Path(__file__).parents[2] / "warhammer-deal-bot" / "config.example.yaml"
+    )
+    products = {product.id: product for product in config.products}
+    maximus = products["maximus-battle-group"]
+    original = products["legiones-astartes-battle-group-2023"]
+    assert matches_product("Horus Heresy Maximus Battle Group sealed", maximus)
+    assert matches_product("Maximus Battlegroup NIB", maximus)
+    assert matches_product("2023 Legiones Astartes Battle Group NIB", original)
+    assert matches_product(
+        "Legiones Astartes Battlegroup 2023 sealed", original
+    )
+    for title in (
+        "Legiones Astartes Battle Group sealed",
+        "Legiones Astartes Battle Group 2023 Maximus",
+        "Legiones Astartes Battle Group 2023 Siege Assault",
+        "Legiones Astartes Battle Group 2023 Legions Imperialis",
+        "Legiones Astartes Battle Group 2023 incomplete",
+        "Deredeo from Legiones Astartes Battle Group 2023",
+    ):
+        assert not matches_product(title, original)
+    for title in (
+        "Maximus Battle Group empty box",
+        "Maximus Battle Group split",
+        "Sicaran only from Maximus Battle Group",
+    ):
+        assert not matches_product(title, maximus)

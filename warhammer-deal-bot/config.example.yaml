@@ -172,3 +172,46 @@ products:
     hard_threshold: 35
     percent_off_threshold: 25
     minimum_savings: 10
+
+  # Reference retail price: $220; not a current seller quote.
+  # https://www.feldherr.com/blogs/news/on-the-table-31
+  - id: maximus-battle-group
+    name: Maximus Battle Group
+    aliases: [Maximus Battlegroup]
+    queries:
+      ['Horus Heresy Maximus Battle Group', 'Horus Heresy Maximus Battlegroup']
+    quantity_wanted: 1
+    msrp: 220
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [split, incomplete, partial, missing, from, only]
+  # Original 2023 retail reference: $210, not the individual contents' combined MSRP.
+  # https://www.discountgamesinc.com/blogs/discount-games-inc-blog/games-workshop-black-friday-army-boxes/
+  # Require the year because the generic box name alone cannot establish the release.
+  - id: legiones-astartes-battle-group-2023
+    name: Legiones Astartes Battle Group (2023)
+    aliases: [Legiones Astartes Battle Group, Legiones Astartes Battlegroup]
+    queries:
+      [
+        'Legiones Astartes Battle Group 2023',
+        'Legiones Astartes Battlegroup 2023',
+      ]
+    quantity_wanted: 1
+    msrp: 210
+    percent_off_threshold: 25
+    minimum_savings: 15
+    required_terms: ['2023']
+    excluded_terms:
+      [
+        Maximus,
+        Saturnine,
+        Siege Assault,
+        Solar Auxilia,
+        Custodes,
+        split,
+        incomplete,
+        partial,
+        missing,
+        from,
+        only,
+      ]
