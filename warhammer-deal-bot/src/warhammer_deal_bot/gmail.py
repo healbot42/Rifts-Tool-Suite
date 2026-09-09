@@ -118,11 +118,10 @@ def authorize(client_secrets: Path) -> None:
             bind_addr="127.0.0.1",
             port=0,
             timeout_seconds=180,
-            authorization_prompt_message="",
+            authorization_prompt_message="Open this URL if the browser does not open: {url}",
             success_message="Google sign-in received. Return to the bot terminal for the result.",
             access_type="offline",
             prompt="consent",
-            include_granted_scopes="false",
         )
         _save(credentials, vault)
     except Exception:

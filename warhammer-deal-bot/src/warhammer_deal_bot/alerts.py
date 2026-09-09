@@ -15,13 +15,23 @@ SMTP_PORT = 465
 SMTP_USERNAME_ENV = "SMTP_USERNAME"
 SMTP_PASSWORD_ENV = "SMTP_APP_PASSWORD"
 SMTP_RECIPIENT_ENV = "DEAL_BOT_EMAIL_TO"
+EMAIL_LINK_HOSTS = {
+    "ebay": {"ebay.com"},
+    "warpfire": {"warpfireminis.com"},
+    "gamersguild": {"gamersguildusa.com"},
+    "herrick": {"herrickgames.com"},
+    "miniature_market": {"miniaturemarket.com"},
+    "valhalla": {"valhallahobby.com"},
+    "flipside": {"flipsidegaming.com"},
+    "lazarus": {"lazarus-games.com"},
+    "little_big_wars": {"littlebigwars.com"},
+}
 
 
 def _safe_url(url: str, source: str) -> str:
-    allowed_hosts = {"ebay": {"ebay.com"}}
-    if source not in allowed_hosts:
+    if source not in EMAIL_LINK_HOSTS:
         raise ValueError(f"Email links are not approved for source {source!r}")
-    return validate_https_url(url, allowed_hosts[source])
+    return validate_https_url(url, EMAIL_LINK_HOSTS[source])
 
 
 def format_digest(deals: list[Deal]) -> tuple[str, str, str]:

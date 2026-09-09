@@ -67,9 +67,11 @@ def test_authorization_requests_only_send_with_pkce_and_loopback(
     assert settings["host"] == settings["bind_addr"] == "127.0.0.1"
     assert settings["port"] == 0
     assert settings["access_type"] == "offline"
-    assert settings["include_granted_scopes"] == "false"
+    assert "include_granted_scopes" not in settings
     assert settings["timeout_seconds"] == 180
-    assert settings["authorization_prompt_message"] == ""
+    assert settings["authorization_prompt_message"] == (
+        "Open this URL if the browser does not open: {url}"
+    )
     stored = json.loads(vault.set_password.call_args.args[2])
     assert stored["refresh_token"] == grant.refresh_token
     assert "token" not in stored
