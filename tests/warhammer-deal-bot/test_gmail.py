@@ -142,6 +142,28 @@ def test_saved_grant_loads_without_access_token(grant, vault):
     assert not loaded.valid
 
 
+def test_complete_environment_grant_supports_headless_runner(monkeypatch):
+    monkeypatch.setenv(
+        "GMAIL_OAUTH_CLIENT_ID", "test.apps.googleusercontent.com"
+    )
+    monkeypatch.setenv("GMAIL_OAUTH_CLIENT_SECRET", "fake-client-secret")
+    monkeypatch.setenv("GMAIL_OAUTH_REFRESH_TOKEN", "fake-refresh-token")
+    credentials = gmail._load_environment()
+    assert credentials.client_id == "test.apps.googleusercontent.com"
+    assert credentials.refresh_token == "fake-refresh-token"
+    assert credentials.scopes == [gmail.SCOPE]
+
+
+def test_partial_environment_grant_is_rejected(monkeypatch):
+    monkeypatch.setenv(
+        "GMAIL_OAUTH_CLIENT_ID", "test.apps.googleusercontent.com"
+    )
+    monkeypatch.delenv("GMAIL_OAUTH_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("GMAIL_OAUTH_REFRESH_TOKEN", raising=False)
+    with pytest.raises(ValueError, match="every GMAIL_OAUTH"):
+        gmail._load_environment()
+
+
 def test_send_refreshes_then_posts_mime_to_fixed_endpoint(
     monkeypatch, grant, vault
 ):

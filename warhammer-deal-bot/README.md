@@ -151,12 +151,13 @@ It opens your browser, uses PKCE and OAuth state validation, and listens only on
 runs never open a browser. They refresh a saved grant automatically and report
 an actionable error if it expires, is revoked, or cannot be refreshed.
 
-The refresh token and client configuration are stored in **Windows Credential
+Local refresh tokens and client configuration are stored in **Windows Credential
 Manager**, under `Warhammer Deal Bot Gmail OAuth`, for the Windows user who
-connects the account. There is no plaintext token-file fallback. This protects
-secrets at rest; software running as that Windows user can still access their
-credential vault. The downloaded client JSON is not copied into the repository.
-Do not enable third-party HTTP wire logging around authentication.
+connects the account. GitHub Actions instead reads the same three fields from
+encrypted `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, and
+`GMAIL_OAUTH_REFRESH_TOKEN` repository secrets. There is no plaintext token-file
+fallback. The downloaded client JSON is not copied into the repository. Do not
+enable third-party HTTP wire logging around authentication.
 
 `gmail-status` inspects the saved grant without a network request; it does not
 prove Google still accepts it. Use `test-email` for live verification. To remove
@@ -263,15 +264,19 @@ delivery failures.
 17 0,6,12,18 * * * cd /path/to/Rifts-TW-Calculator/warhammer-deal-bot && .venv/bin/python -m warhammer_deal_bot --config config.yaml run >> deal-bot.log 2>&1
 ```
 
-### GitHub Actions (optional)
+### GitHub Actions
 
-A scheduled workflow can install the package and inject repository secrets, but
-hosted runners have changing shared IPs that sellers may block. More
-importantly, their local SQLite filesystem is ephemeral. Artifact upload is a
-snapshot, not safe transactional persistence, and overlapping jobs can lose
-history. Run the bot on the Windows machine or another persistent host. If
-Actions is used, place a durable database in an external service or carefully
-download/upload a single artifact with concurrency disabled.
+`.github/workflows/warhammer-deal-bot.yml` runs at 00:17, 06:17, 12:17, and
+18:17 UTC and can also be started manually. It requires encrypted repository
+secrets for `DEAL_BOT_EMAIL_FROM`, `DEAL_BOT_EMAIL_TO`, `GMAIL_OAUTH_CLIENT_ID`,
+`GMAIL_OAUTH_CLIENT_SECRET`, and `GMAIL_OAUTH_REFRESH_TOKEN`. Add
+`EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` after production API approval; the
+workflow disables eBay when either is absent.
+
+The workflow serializes runs and restores `data/deals.sqlite3` from a rotating
+Actions cache so routine scans retain observations and alert history. GitHub can
+evict caches, so a later cache miss may cause previously seen deals to alert
+again. Hosted runners also use changing shared IPs that a retailer may block.
 
 ## Development
 

@@ -7,6 +7,7 @@ grant and fails with a reauthorization instruction if Google revokes it.
 import base64
 import json
 import logging
+import os
 import sys
 from email.message import EmailMessage
 from functools import partial
@@ -24,6 +25,11 @@ TOKEN_URI = "https://oauth2.googleapis.com/token"
 SEND_URI = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 VAULT_SERVICE = "Warhammer Deal Bot Gmail OAuth"
 VAULT_ACCOUNT = "send-only"
+ENVIRONMENT_GRANT_FIELDS = {
+    "client_id": "GMAIL_OAUTH_CLIENT_ID",
+    "client_secret": "GMAIL_OAUTH_CLIENT_SECRET",
+    "refresh_token": "GMAIL_OAUTH_REFRESH_TOKEN",
+}
 
 
 def _quiet_auth_logs() -> None:
@@ -103,6 +109,19 @@ def _load(vault) -> Credentials:
     return credentials
 
 
+def _load_environment() -> Credentials | None:
+    values = {field: os.environ.get(name) for field, name in ENVIRONMENT_GRANT_FIELDS.items()}
+    if not any(values.values()):
+        return None
+    if not all(values.values()):
+        raise ValueError("Set every GMAIL_OAUTH_* environment variable or none of them")
+    credentials = Credentials.from_authorized_user_info(
+        {**values, "scopes": [SCOPE], "token_uri": TOKEN_URI}
+    )
+    _validate_grant(credentials)
+    return credentials
+
+
 def authorize(client_secrets: Path) -> None:
     """Perform explicit browser consent with PKCE/state and a loopback-only callback."""
     _quiet_auth_logs()
@@ -151,11 +170,15 @@ class _TokenSession(requests.Session):
 def send_message(message: EmailMessage) -> None:
     _quiet_auth_logs()
     try:
-        vault = _vault()
-        credentials = _load(vault)
+        credentials = _load_environment()
+        vault = None
+        if credentials is None:
+            vault = _vault()
+            credentials = _load(vault)
         with _TokenSession() as session:
             credentials.refresh(Request(session=session))
-        _save(credentials, vault)
+        if vault is not None:
+            _save(credentials, vault)
     except Exception:
         raise ValueError(
             "Gmail authorization unavailable. Check connectivity and run gmail-authorize "
@@ -181,6 +204,9 @@ def send_message(message: EmailMessage) -> None:
 def authorization_status() -> str:
     """Inspect the local grant without refreshing it, opening a browser, or sending mail."""
     try:
+        credentials = _load_environment()
+        if credentials is not None:
+            return "Send-only Gmail grant loaded from encrypted environment variables."
         _load(_vault())
     except Exception:
         return "Gmail is not connected or the saved grant is invalid. Run gmail-authorize."
