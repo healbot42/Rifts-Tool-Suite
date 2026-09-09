@@ -22,48 +22,41 @@ sources:
       reason: 'Configured MSRP reference only; no verified public API',
     }
   warpfire:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    flat_shipping: 0
+    request_delay_seconds: 0.5
   gamersguild:
     enabled: true
-    free_shipping_threshold: 99
+    flat_shipping: 0
     request_delay_seconds: 0.5
   herrick:
     enabled: true
-    flat_shipping: 10
-    free_shipping_threshold: 100
+    flat_shipping: 0
     request_delay_seconds: 0.5
   miniature_market:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    flat_shipping: 0
+    request_delay_seconds: 0.5
   valhalla:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    flat_shipping: 0
+    request_delay_seconds: 0.5
   flipside:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    flat_shipping: 0
+    request_delay_seconds: 0.5
   lazarus:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    flat_shipping: 0
+    request_delay_seconds: 0.5
   little_big_wars:
     enabled: true
-    free_shipping_threshold: 55
+    flat_shipping: 0
     request_delay_seconds: 0.5
   troll_trader:
     {
       enabled: false,
-      reason:
-        'No verified API and destination-aware international shipping required',
+      reason: 'UK-based retailer excluded by user; do not search or alert',
     }
   reddit_miniswap:
     {

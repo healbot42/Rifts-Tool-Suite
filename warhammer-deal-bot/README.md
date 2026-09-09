@@ -8,14 +8,16 @@ GitHub remote but does not ship in the Vue site.
 
 ## Current source status
 
-| Source                                                  | Status            | Reason                                                                               |
-| ------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------ |
-| eBay                                                    | Implemented       | Official Browse API and application OAuth                                            |
-| Games Workshop                                          | Reference-only    | MSRP lives in YAML; no verified public US product API                                |
-| Gamers Guild USA, Herrick, Little Big Wars              | Implemented       | Public Shopify product sitemaps and product records; conservative shipping rules     |
-| Warpfire, Miniature Market, Valhalla, Flipside, Lazarus | Disabled adapters | No sufficiently reliable access and delivered-price rule has been established        |
-| Troll Trader                                            | Disabled adapter  | No verified API; international shipping prevents reliable delivered-price comparison |
-| Reddit r/Miniswap                                       | Disabled adapter  | Requires approved Reddit OAuth API access; HTML/JSON search is not scraped           |
+| Source                                              | Status           | Reason                                                                     |
+| --------------------------------------------------- | ---------------- | -------------------------------------------------------------------------- |
+| eBay                                                | Implemented      | Official Browse API and application OAuth                                  |
+| Games Workshop                                      | Reference-only   | MSRP lives in YAML; no verified public US product API                      |
+| Gamers Guild USA, Herrick, Little Big Wars, Lazarus | Implemented      | Public Shopify product sitemaps and product records                        |
+| Flipside                                            | Implemented      | Store-documented agent search and product JSON routes                      |
+| Warpfire and Miniature Market                       | Implemented      | Advertised product sitemaps and public product metadata                    |
+| Valhalla Hobby                                      | Implemented      | Public catalog search and embedded inventory records                       |
+| Troll Trader                                        | Disabled adapter | UK retailer explicitly excluded from searches and alerts                   |
+| Reddit r/Miniswap                                   | Disabled adapter | Requires approved Reddit OAuth API access; HTML/JSON search is not scraped |
 
 Each source has its own module and implements the common `SourceAdapter`
 interface. A disabled adapter fails clearly if someone turns it on without
@@ -196,12 +198,10 @@ fatal. Network requests use timeouts, bounded exponential retries, per-product
 randomized delays, and conservative limits. Logs include returned and alertable
 counts.
 
-Gamers Guild and Little Big Wars listings below their published free-shipping
-thresholds are skipped because their shipping charge is calculated at checkout.
-Herrick listings include its published $10 shipping charge below $100 and free
-shipping at $100. These settings assume delivery within the contiguous United
-States and live in YAML so they can be disabled or updated if a store changes
-its policy.
+Retailer listings use item price only, with shipping recorded as zero by user
+choice. eBay continues to use the shipping quote returned for each listing.
+Taxes are not included. Review the retailer checkout total before buying,
+especially when an alert is close to its threshold.
 
 SQLite records normalized listings, every price observation, alert history,
 source run schema, and configured products. Sensitive raw-metadata keys are

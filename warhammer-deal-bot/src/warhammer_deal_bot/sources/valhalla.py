@@ -1,5 +1,5 @@
-from .disabled import DisabledSourceAdapter
+from .catalog_pages import ValhallaCatalogAdapter
 
 
-class ValhallaAdapter(DisabledSourceAdapter):
-    name = "valhalla"
+class ValhallaAdapter(ValhallaCatalogAdapter):
+    pass

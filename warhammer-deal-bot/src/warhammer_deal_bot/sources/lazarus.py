@@ -1,5 +1,7 @@
-from .disabled import DisabledSourceAdapter
+from .shopify import ShopifySitemapAdapter
 
 
-class LazarusAdapter(DisabledSourceAdapter):
+class LazarusAdapter(ShopifySitemapAdapter):
     name = "lazarus"
+    base_url = "https://lazarus-games.com"
+    allowed_hosts = {"lazarus-games.com"}
