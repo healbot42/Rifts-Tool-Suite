@@ -48,3 +48,25 @@ def test_credential_environment_names_cannot_be_redirected(monkeypatch):
     monkeypatch.setenv("EBAY_CLIENT_SECRET", "secret")
     with pytest.raises(ValueError):
         EbayAdapter({"client_secret_env": "UNRELATED_SECRET"}, httpx.Client())
+
+
+@pytest.mark.parametrize(
+    "shipping",
+    [[], [{}], [{"shippingCost": {"value": "0", "currency": "EUR"}}]],
+)
+def test_shipping_floor_rejects_unknown_or_mismatched_quote(
+    monkeypatch, gal_vorbak, shipping
+):
+    monkeypatch.setenv("EBAY_CLIENT_ID", "id")
+    monkeypatch.setenv("EBAY_CLIENT_SECRET", "secret")
+    gal_vorbak.item_percent_off_threshold = Decimal("25")
+    gal_vorbak.delivered_percent_off_floor = Decimal("15")
+    with httpx.Client() as client:
+        adapter = EbayAdapter({}, client)
+        item = ebay_item()
+        item["shippingOptions"] = shipping
+        assert adapter.parse_item(item, gal_vorbak) is None
+        item["shippingOptions"] = [
+            {"shippingCost": {"value": "0", "currency": "USD"}}
+        ]
+        assert adapter.parse_item(item, gal_vorbak) is not None

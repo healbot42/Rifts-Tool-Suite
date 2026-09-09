@@ -180,9 +180,10 @@ products:
     aliases: [Maximus Battlegroup]
     queries:
       ['Horus Heresy Maximus Battle Group', 'Horus Heresy Maximus Battlegroup']
-    quantity_wanted: 1
+    quantity_wanted: 2
     msrp: 220
-    percent_off_threshold: 25
+    item_percent_off_threshold: 25
+    delivered_percent_off_floor: 15
     minimum_savings: 15
     excluded_terms: [split, incomplete, partial, missing, from, only]
   # Original 2023 retail reference: $210, not the individual contents' combined MSRP.
@@ -196,9 +197,10 @@ products:
         'Legiones Astartes Battle Group 2023',
         'Legiones Astartes Battlegroup 2023',
       ]
-    quantity_wanted: 1
+    quantity_wanted: 2
     msrp: 210
-    percent_off_threshold: 25
+    item_percent_off_threshold: 25
+    delivered_percent_off_floor: 15
     minimum_savings: 15
     required_terms: ['2023']
     excluded_terms:

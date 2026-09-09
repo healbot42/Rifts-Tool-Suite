@@ -90,11 +90,31 @@ class EbayAdapter(SourceAdapter):
             item_price = Decimal(str(price_data["value"]))  # type: ignore[index]
             currency = str(price_data["currency"])  # type: ignore[index]
             shipping_options = item.get("shippingOptions", [])
+            if product.delivered_percent_off_floor is not None:
+                # A mandatory shipped-price floor cannot treat unknown shipping as free.
+                if (
+                    not isinstance(shipping_options, list)
+                    or not shipping_options
+                    or not isinstance(shipping_options[0], dict)
+                ):
+                    return None
+                quoted_shipping = shipping_options[0].get("shippingCost")
+                if (
+                    not isinstance(quoted_shipping, dict)
+                    or "value" not in quoted_shipping
+                    or quoted_shipping.get("currency") != currency
+                ):
+                    return None
             shipping = Decimal("0")
             if shipping_options:
                 shipping_cost = shipping_options[0].get("shippingCost", {})  # type: ignore[index,union-attr]
                 shipping = Decimal(str(shipping_cost.get("value", "0")))  # type: ignore[union-attr]
-            if item_price < 0 or shipping < 0:
+            if (
+                not item_price.is_finite()
+                or not shipping.is_finite()
+                or item_price < 0
+                or shipping < 0
+            ):
                 return None
         except (KeyError, InvalidOperation, TypeError):
             return None

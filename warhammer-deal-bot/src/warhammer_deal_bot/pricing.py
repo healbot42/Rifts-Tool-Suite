@@ -27,6 +27,24 @@ def evaluate_deal(
         listing.condition, Decimal("0")
     )
     reasons: list[str] = []
+    if product.item_percent_off_threshold is not None:
+        if product.delivered_percent_off_floor is None or product.msrp <= 0:
+            return None
+        # Both limits are mandatory, even if another deal rule would qualify the listing.
+        # Compare unrounded prices so a displayed percentage cannot admit a one-cent overrun.
+        item_limit = product.msrp * (
+            1 - (product.item_percent_off_threshold + condition_adjustment) / 100
+        )
+        delivered_limit = product.msrp * (
+            1 - (product.delivered_percent_off_floor + condition_adjustment) / 100
+        )
+        if listing.item_price > item_limit or delivered > delivered_limit:
+            return None
+        reasons.append(
+            f"item price is at least {product.item_percent_off_threshold + condition_adjustment}% "
+            f"below MSRP and price including shipping is at least "
+            f"{product.delivered_percent_off_floor + condition_adjustment}% below MSRP"
+        )
     adjusted_hard_threshold = (
         product.hard_threshold * (Decimal("1") - condition_adjustment / Decimal("100"))
         if product.hard_threshold is not None

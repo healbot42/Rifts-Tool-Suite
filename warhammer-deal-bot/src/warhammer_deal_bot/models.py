@@ -36,6 +36,8 @@ class Product:
     expected_models: int | None = None
     required_terms: list[str] = field(default_factory=list)
     excluded_terms: list[str] = field(default_factory=list)
+    item_percent_off_threshold: Decimal | None = None
+    delivered_percent_off_floor: Decimal | None = None
 
 
 @dataclass(slots=True)

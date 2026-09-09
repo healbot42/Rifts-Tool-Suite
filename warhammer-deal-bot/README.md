@@ -214,6 +214,15 @@ pads, heads, iconography, and paint supplies by default. Product-specific
 `required_terms` and `excluded_terms` make ambiguous searches stricter. Review
 the first dry run with email disabled before enabling alerts.
 
+For the Maximus and 2023 Legiones Astartes battle groups, two copies of each are
+wanted. Both `item_percent_off_threshold: 25` and
+`delivered_percent_off_floor: 15` must pass: at least 25% off the reference MSRP
+before shipping and at least 15% off including shipping. These are per-box
+limits; quantity wanted does not multiply the price threshold or track purchases
+automatically. Using the saved $220/$210 reference prices, the respective item
+limits are $165/$157.50 and shipping-inclusive limits are $187/$178.50. Tax is
+not included. Other products retain their existing rules.
+
 ## Scheduling four runs per day
 
 ### Windows Task Scheduler

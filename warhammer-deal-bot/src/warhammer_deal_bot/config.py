@@ -44,6 +44,18 @@ def load_config(path: str | Path) -> AppConfig:
         if not product_id or not name or _money(raw.get("msrp")) is None:
             raise ValueError("Each product requires id, name, and msrp")
         conditions = raw.get("enabled_conditions", [condition.value for condition in Condition])
+        item_discount = _money(raw.get("item_percent_off_threshold"))
+        delivered_floor = _money(raw.get("delivered_percent_off_floor"))
+        if (item_discount is None) != (delivered_floor is None):
+            raise ValueError(
+                "Item discount and delivered discount floor must be configured together"
+            )
+        if item_discount is not None and (
+            not item_discount.is_finite()
+            or not delivered_floor.is_finite()
+            or not Decimal("0") <= delivered_floor <= item_discount <= Decimal("100")
+        ):
+            raise ValueError("Discounts must satisfy 0 <= delivered floor <= item discount <= 100")
         products.append(
             Product(
                 id=product_id,
@@ -65,6 +77,8 @@ def load_config(path: str | Path) -> AppConfig:
                 expected_models=raw.get("expected_models"),
                 required_terms=[str(value) for value in raw.get("required_terms", [])],
                 excluded_terms=[str(value) for value in raw.get("excluded_terms", [])],
+                item_percent_off_threshold=item_discount,
+                delivered_percent_off_floor=delivered_floor,
             )
         )
     email_data = data.get("email", {})
