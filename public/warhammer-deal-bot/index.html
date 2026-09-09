@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <meta
+      name="description"
+      content="A locally run miniature listing monitor with optional send-only Gmail deal notifications."
+    />
+    <title>Personal miniature price alerts | Warhammer Deal Bot</title>
+    <link
+      rel="stylesheet"
+      href="style.css"
+    />
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Bot information">
+        <a href="./">Warhammer Deal Bot</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Terms of use</a>
+      </nav>
+      <h1>Warhammer Deal Bot</h1>
+      <p class="lead">
+        Watch miniature listings and receive email alerts when they match your
+        chosen price and condition rules.
+      </p>
+      <p>
+        This personal-use Python application runs on your own Windows computer.
+        It searches eBay through the official Browse API, compares listings with
+        your configured thresholds, and keeps local price and alert history. It
+        does not place orders or purchase items.
+      </p>
+      <h2>Email alerts with your permission</h2>
+      <p>
+        You can connect your Gmail account through Google's sign-in page. The
+        bot requests only permission to send email on your behalf, using
+        <code>gmail.send</code>, so it can deliver deal digests and explicit
+        test messages to the recipient you configure. That permission does not
+        allow reading or deleting your inbox.
+      </p>
+      <p class="note">
+        This website provides information about the bot. Google sign-in and
+        monitoring are launched from the locally installed application; they do
+        not run on this website.
+      </p>
+      <h2>What you control</h2>
+      <ul>
+        <li>
+          Your watchlist, acceptable conditions, price thresholds, and email
+          recipient.
+        </li>
+        <li>Whether email alerts are enabled and when the bot runs.</li>
+        <li>When to disconnect Google access or remove local history.</li>
+      </ul>
+      <p>
+        eBay is the currently implemented live listing source. Other retailer
+        and Reddit integrations remain disabled. Live searches require your own
+        approved eBay API access.
+      </p>
+      <h2>Privacy and support</h2>
+      <p>
+        Read the <a href="privacy.html">privacy policy</a> for data access,
+        storage, sharing, retention, and deletion details, and the
+        <a href="terms.html">terms of use</a> before using the bot.
+      </p>
+      <p>
+        Warhammer Deal Bot follows the
+        <a
+          href="https://developers.google.com/terms/api-services-user-data-policy"
+          >Google API Services User Data Policy</a
+        >, including its Limited Use requirements, when using information
+        received from Google APIs.
+      </p>
+      <p>
+        For support or privacy questions, contact the maintainer through
+        <a href="https://github.com/healbot42/Rifts-Tool-Suite/issues"
+          >the repository's issue tracker</a
+        >. Issues are public; do not include credentials, tokens, or private
+        email content.
+      </p>
+      <footer>
+        <p>
+          Maintained by <a href="https://github.com/healbot42">healbot42</a>.
+          <a
+            href="https://github.com/healbot42/Rifts-Tool-Suite/tree/main/warhammer-deal-bot"
+            >Source and setup instructions</a
+          >
+          &middot; <a href="../">Rifts Tool Suite</a>
+        </p>
+        <p>
+          Independent fan utility. Not affiliated with or endorsed by Games
+          Workshop, eBay, or Google.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -99,6 +99,27 @@ Google references:
 and
 [personal-use verification exceptions](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification#exceptions-verification-requirements).
 
+### Public app information for Google Branding
+
+Google may require homepage and privacy-policy URLs before enabling **Publish
+app**, even when those fields are not marked required on the Branding form. Use
+the deployed informational pages:
+
+- Application home page:
+  `https://healbot42.github.io/Rifts-Tool-Suite/warhammer-deal-bot/`
+- Privacy policy:
+  `https://healbot42.github.io/Rifts-Tool-Suite/warhammer-deal-bot/privacy.html`
+- Terms of service:
+  `https://healbot42.github.io/Rifts-Tool-Suite/warhammer-deal-bot/terms.html`
+- Authorized domain: `healbot42.github.io` (no scheme or path).
+
+The source pages live under `public/warhammer-deal-bot/` and Vite copies them to
+`dist/warhammer-deal-bot/`. They contain no OAuth credentials or sign-in
+handler. Keep their data-handling disclosures aligned with the implementation.
+If Google requests domain ownership verification, complete its stated
+requirements; adding an authorized domain is not itself proof of ownership or
+app verification.
+
 ### Connect and test
 
 From `warhammer-deal-bot`, replace the example path with your downloaded file:
