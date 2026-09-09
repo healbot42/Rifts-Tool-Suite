@@ -1,10 +1,10 @@
 # Warhammer Deal Bot
 
 A conservative, configuration-driven Python 3.12+ monitor that uses eBay's
-official Browse API, stores normalized price history in SQLite, and sends
-Gmail-compatible deal digests. It is an isolated subproject in the Rifts Tool
-Suite repository; it shares the same GitHub remote but does not ship in the Vue
-site.
+official Browse API, stores normalized price history in SQLite, and sends Gmail
+deal digests using send-only OAuth on Windows (or legacy SMTP). It is an
+isolated subproject in the Rifts Tool Suite repository; it shares the same
+GitHub remote but does not ship in the Vue site.
 
 ## Current source status
 
@@ -28,31 +28,26 @@ GW prices. Verify them before enabling email alerts.
 
 ## Windows setup
 
+Use Python 3.12 or newer. From the repository root:
+
 ```powershell
 cd warhammer-deal-bot
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --require-hashes --only-binary :all: -r requirements.lock
-python -m pip install --no-deps -e .
-Copy-Item config.example.yaml config.yaml
-Copy-Item .env.example .env
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --require-hashes --only-binary :all: -r requirements.lock
+.venv\Scripts\python.exe -m pip install --no-deps -e .
+if (!(Test-Path config.yaml)) { Copy-Item config.example.yaml config.yaml }
 ```
 
-The application reads credentials only from the fixed environment-variable names
-below; YAML cannot redirect it to another secret or SMTP server. `.env` is a
-template and is not loaded automatically. In PowerShell, set them for the
-current process:
+Use the virtual environment's Python for the commands below (or activate it with
+`.venv\Scripts\Activate.ps1`). The example selects `email.provider: gmail` and
+leaves `email.enabled: false` until you finish testing. Existing configs without
+`provider` retain their previous SMTP behavior; add `provider: gmail` to switch
+them to OAuth.
 
-```powershell
-$env:EBAY_CLIENT_ID = "your-production-app-id"
-$env:EBAY_CLIENT_SECRET = "your-production-cert-id"
-$env:SMTP_USERNAME = "you@gmail.com"
-$env:SMTP_APP_PASSWORD = "your-16-character-app-password"
-$env:DEAL_BOT_EMAIL_TO = "you@gmail.com"
-```
-
-On Linux/macOS, create the venv with `python3.12 -m venv .venv`, activate it
-with `source .venv/bin/activate`, and export the same variables.
+The application reads eBay credentials from `EBAY_CLIENT_ID` and
+`EBAY_CLIENT_SECRET`. Configure them locally once production access is approved.
+The `.env.example` file is documentation only: the bot does **not** load `.env`.
+Do not paste credentials into chat or put them in YAML or Git.
 
 ## eBay setup
 
@@ -67,22 +62,97 @@ Official references:
 [Browse API](https://developer.ebay.com/api-docs/buy/api-browse.html) and
 [OAuth credentials](https://developer.ebay.com/api-docs/static/oauth-credentials.html).
 
-## Gmail setup
+## Gmail setup: send-only OAuth on Windows
 
-SMTP with a Gmail app password is the maintainable unattended option implemented
-here. The endpoint is fixed to `smtp.gmail.com:465`, uses an explicit TLS
-1.2-or-newer context, and cannot be changed in YAML. Enable 2-Step Verification
-on the Google account, create an app password, populate the three SMTP
-environment variables, set `email.enabled: true`, then run:
+OAuth is the recommended delivery method. The bot requests only
+`https://www.googleapis.com/auth/gmail.send`; it cannot read or delete mail with
+that permission. Google handles browser sign-in and account verification. An app
+password is not required.
+
+### Google account steps
+
+1. Create a project named **Warhammer Deal Bot** in
+   [Google Cloud Console](https://console.cloud.google.com/), and enable **Gmail
+   API**.
+2. Open **Google Auth Platform**. Configure the app name, support email, and
+   developer contact. For personal Gmail, choose **External** under Audience and
+   add your own Gmail address as a test user while testing. Workspace accounts
+   may have an Internal option or require administrator approval.
+3. Under **Data Access**, add only the Gmail `gmail.send` scope. Do not request
+   inbox, modify, delete, or full-mail access.
+4. Under **Clients**, create an OAuth client with application type **Desktop
+   app**. Download its JSON to a private local folder outside the repository.
+   This is an OAuth client configuration, not an API key or service-account key.
+5. Before unattended use, change the external app's publishing status from
+   **Testing** to **In production** under Audience, then authorize again to
+   obtain a fresh grant. Gmail refresh tokens issued in Testing expire after
+   seven days. Personal-use apps can qualify for Google's verification
+   exception; this is distinct from publishing status, and an unverified-app
+   warning may remain. Check that the consent screen names your own project and
+   requests only sending email. Publishing does not publish the bot code or
+   grant anyone your Gmail access.
+
+Google references:
+[Python setup](https://developers.google.com/workspace/gmail/api/quickstart/python),
+[scope definitions](https://developers.google.com/workspace/gmail/api/auth/scopes),
+[OAuth token expiration](https://developers.google.com/identity/protocols/oauth2#expiration),
+and
+[personal-use verification exceptions](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification#exceptions-verification-requirements).
+
+### Connect and test
+
+From `warhammer-deal-bot`, replace the example path with your downloaded file:
 
 ```powershell
-python -m warhammer_deal_bot test-email
+.venv\Scripts\python.exe -m warhammer_deal_bot gmail-authorize --client-secrets "C:\path\to\client_secret_download.json"
+.venv\Scripts\python.exe -m warhammer_deal_bot gmail-status
+$env:DEAL_BOT_EMAIL_FROM = "your-address@gmail.com"
+$env:DEAL_BOT_EMAIL_TO = "your-address@gmail.com"
+.venv\Scripts\python.exe -m warhammer_deal_bot test-email
 ```
 
-OAuth Gmail API support can be added later, but unattended token refresh and
-Google Cloud consent configuration are substantially heavier than a personal app
-password. No credential is stored in SQLite, raw source metadata, YAML, logs, or
-source code.
+Choose the Gmail account matching `DEAL_BOT_EMAIL_FROM` during sign-in. The
+recipient may be the same account or another address you control. The explicit
+`test-email` command sends one message even while `email.enabled` is false.
+Confirm receipt, inspect an eBay run with alerts disabled, then set
+`email.enabled: true` to enable deal notifications.
+
+The authorization command works before `config.yaml` or eBay credentials exist.
+It opens your browser, uses PKCE and OAuth state validation, and listens only on
+`127.0.0.1` at an automatically selected port for up to three minutes. Scheduled
+runs never open a browser. They refresh a saved grant automatically and report
+an actionable error if it expires, is revoked, or cannot be refreshed.
+
+The refresh token and client configuration are stored in **Windows Credential
+Manager**, under `Warhammer Deal Bot Gmail OAuth`, for the Windows user who
+connects the account. There is no plaintext token-file fallback. This protects
+secrets at rest; software running as that Windows user can still access their
+credential vault. The downloaded client JSON is not copied into the repository.
+Do not enable third-party HTTP wire logging around authentication.
+
+`gmail-status` inspects the saved grant without a network request; it does not
+prove Google still accepts it. Use `test-email` for live verification. To remove
+this bot's locally stored grant:
+
+```powershell
+.venv\Scripts\python.exe -m warhammer_deal_bot gmail-forget
+```
+
+Also revoke the app in
+[Google account connections](https://myaccount.google.com/connections) when
+disconnecting it completely. Gmail send failures are not immediately retried
+because a timeout may occur after delivery. A later scheduled run can repeat an
+unconfirmed alert because alert history is saved only after confirmed delivery;
+check Sent before retrying.
+
+### Legacy SMTP option
+
+SMTP remains available for existing setups with `email.provider: smtp`. Set
+`SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `DEAL_BOT_EMAIL_TO` as environment
+variables. It uses the fixed endpoint `smtp.gmail.com:465` and TLS 1.2 or newer.
+OAuth users do not need these SMTP credentials. OAuth vault support is currently
+Windows-only; Linux/macOS installations can use SMTP or require a future secure
+OS credential-store implementation.
 
 ## Commands
 
@@ -136,9 +206,14 @@ or not**, and add four daily triggers (for example 06:00, 12:00, 18:00, and
 - Arguments: `-m warhammer_deal_bot --config config.yaml run`
 - Start in: `E:\Code\Rifts-TW-Calculator\warhammer-deal-bot`
 
-Store credentials as user environment variables or use a locked-down wrapper
-outside the repository. Enable retry-on-failure and prevent overlapping
-instances.
+Run the task under the **same Windows account** used for `gmail-authorize`, so
+it can access that user's Credential Manager. Persist `DEAL_BOT_EMAIL_FROM` and
+`DEAL_BOT_EMAIL_TO` as user environment variables; the `$env:` examples above
+last only for the current PowerShell session. Keep eBay credentials in user
+environment variables or a protected wrapper outside the repository. Test the
+scheduled task under that account before leaving it unattended, prevent
+overlapping instances, and do not enable automatic retries after ambiguous mail
+delivery failures.
 
 ### cron
 
@@ -164,10 +239,11 @@ python -m ruff check .
 python -m ruff format --check .
 ```
 
-Tests use mocked API responses and sanitized fixture-style dictionaries; they
-never call live seller pages. When an HTML adapter is eventually approved, add a
-minimal sanitized HTML fixture and parser-layout failure test before enabling
-it.
+OAuth tests use a fake credential vault and mocked browser, refresh, and Gmail
+responses; they never open sign-in or send mail. Tests use mocked API responses
+and sanitized fixture-style dictionaries; they never call live seller pages.
+When an HTML adapter is eventually approved, add a minimal sanitized HTML
+fixture and parser-layout failure test before enabling it.
 
 `requirements.lock` pins and hashes every runtime and test dependency. Install
 it with `--require-hashes --only-binary :all:` as shown above. Dependabot and

@@ -8,6 +8,7 @@ request_delay_seconds: [1.0, 3.0]
 email:
   enabled: false
   digest: true
+  provider: gmail
 
 sources:
   ebay:

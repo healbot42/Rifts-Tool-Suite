@@ -9,9 +9,14 @@ description = "Conservative, configuration-driven Warhammer listing monitor"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "google-auth>=2.40,<3",
+  "google-auth-oauthlib>=1.2,<2",
   "httpx>=0.28,<1",
+  "keyring>=25,<26; sys_platform == 'win32'",
   "PyYAML>=6.0,<7",
+  "requests>=2.32,<3",
   "tenacity>=9.0,<10",
+  "typing-extensions>=4.15,<5",
 ]
 
 [project.optional-dependencies]

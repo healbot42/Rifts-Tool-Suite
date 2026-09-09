@@ -1,4 +1,4 @@
-"""Safe HTML/plain-text deal digests and Gmail-compatible SMTP delivery."""
+"""Safe HTML/plain-text deal digests with Gmail OAuth or legacy SMTP delivery."""
 
 import html
 import os
@@ -69,17 +69,30 @@ def format_digest(deals: list[Deal]) -> tuple[str, str, str]:
 
 
 def send_email(config: EmailConfig, subject: str, text: str, html_body: str) -> None:
-    sender = os.environ.get(SMTP_USERNAME_ENV)
-    password = os.environ.get(SMTP_PASSWORD_ENV)
     recipient = os.environ.get(SMTP_RECIPIENT_ENV)
-    if not sender or not password or not recipient:
-        raise ValueError("Email is enabled but sender, app password, or recipient is missing")
+    if not recipient:
+        raise ValueError("Set DEAL_BOT_EMAIL_TO to the alert recipient")
     message = EmailMessage()
-    message["From"] = sender
     message["To"] = recipient
     message["Subject"] = subject
     message.set_content(text)
     message.add_alternative(html_body, subtype="html")
+    if config.provider == "gmail":
+        from .gmail import send_message
+
+        sender = os.environ.get("DEAL_BOT_EMAIL_FROM")
+        if not sender:
+            raise ValueError("Set DEAL_BOT_EMAIL_FROM to the Gmail account you authorized")
+        message["From"] = sender
+        send_message(message)
+        return
+    if config.provider != "smtp":
+        raise ValueError("Email provider must be gmail or smtp")
+    sender = os.environ.get(SMTP_USERNAME_ENV)
+    password = os.environ.get(SMTP_PASSWORD_ENV)
+    if not sender or not password:
+        raise ValueError("SMTP sender or app password is missing")
+    message["From"] = sender
     tls_context = ssl.create_default_context()
     tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=30, context=tls_context) as smtp:

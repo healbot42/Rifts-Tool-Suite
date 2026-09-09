@@ -14,6 +14,7 @@ from .models import Condition, Product
 class EmailConfig:
     enabled: bool = False
     digest: bool = True
+    provider: str = "smtp"
 
 
 @dataclass(slots=True)
@@ -67,13 +68,15 @@ def load_config(path: str | Path) -> AppConfig:
             )
         )
     email_data = data.get("email", {})
-    unexpected_email_keys = set(email_data) - {"enabled", "digest"}
+    unexpected_email_keys = set(email_data) - {"enabled", "digest", "provider"}
     if unexpected_email_keys:
         raise ValueError(
-            "Email configuration only accepts enabled and digest; Gmail endpoint and "
+            "Email configuration only accepts enabled, digest, and provider; Gmail endpoint and "
             "credential names are fixed for security"
         )
     email = EmailConfig(**email_data)
+    if email.provider not in {"gmail", "smtp"}:
+        raise ValueError("Email provider must be gmail or smtp")
     delay = data.get("request_delay_seconds", [1, 3])
     database_value = Path(str(data.get("database", "data/deals.sqlite3")))
     if database_value.is_absolute() or PureWindowsPath(str(database_value)).is_absolute():

@@ -15,7 +15,9 @@ without searching through production code.
 - `pages/initiative-tracker/`: initiative ordering, ties, and action-pass
   sequencing.
 - `warhammer-deal-bot/`: Python deal matching, pricing, persistence, eBay
-  parsing, and email behavior for the isolated bot subproject.
+  parsing, email delivery, and send-only Gmail OAuth boundaries for the isolated
+  bot subproject. OAuth tests use mocked Google responses and a fake token
+  vault.
 - Add future page tests under `pages/<page-name>/`.
 
 ## Commands

@@ -21,6 +21,10 @@ blob-report/
 !.env.example
 warhammer-deal-bot/config.yaml
 warhammer-deal-bot/data/
+# Google desktop OAuth downloads and legacy token exports must stay local.
+client_secret*.json
+credentials.json
+token.json
 
 # Logs
 *.log

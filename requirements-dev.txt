@@ -3,3 +3,7 @@ httpx==0.28.1
 pytest==9.1.1
 PyYAML==6.0.3
 tenacity==9.1.4
+google-auth==2.57.1
+google-auth-oauthlib==1.4.1
+keyring==25.7.0; sys_platform == "win32"
+requests==2.34.2
