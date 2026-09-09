@@ -63,3 +63,47 @@ def test_battle_groups_reject_wrong_editions_and_split_listings():
         "Sicaran only from Maximus Battle Group",
     ):
         assert not matches_product(title, maximus)
+
+
+def test_added_watchlist_items_match_complete_kits_and_separate_land_raiders():
+    from pathlib import Path
+
+    from warhammer_deal_bot.config import load_config
+
+    config = load_config(
+        Path(__file__).parents[2] / "warhammer-deal-bot" / "config.example.yaml"
+    )
+    products = {product.id: product for product in config.products}
+
+    assert matches_product(
+        "Horus Heresy MKIV Assault Squad 10 Marines NIB",
+        products["mkiv-assault"],
+    )
+    assert matches_product(
+        "Legiones Astartes Deredeo Dreadnought sealed",
+        products["deredeo-dreadnought"],
+    )
+    assert matches_product(
+        "Horus Heresy Land Raider Proteus Explorator NIB",
+        products["land-raider-proteus"],
+    )
+    assert matches_product(
+        "Warhammer 40K Space Marine Land Raider new sealed",
+        products["space-marine-land-raider"],
+    )
+    assert not matches_product(
+        "Land Raider Proteus NIB",
+        products["space-marine-land-raider"],
+    )
+    assert not matches_product(
+        "Land Raider Redeemer Crusader NIB",
+        products["space-marine-land-raider"],
+    )
+    assert not matches_product(
+        "Deredeo Dreadnought weapon arm upgrade",
+        products["deredeo-dreadnought"],
+    )
+    assert not matches_product(
+        "Horus Heresy Heavy Weapons Upgrade Set Lascannons",
+        products["heavy-weapons"],
+    )

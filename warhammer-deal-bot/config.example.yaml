@@ -173,6 +173,127 @@ products:
     percent_off_threshold: 25
     minimum_savings: 10
 
+  - id: mkiv-assault
+    name: MKIV Assault Squad
+    aliases: [Mk IV Assault Squad, MK4 Assault Squad, Mark IV Assault Squad]
+    queries:
+      ['MKIV Assault Squad Horus Heresy', 'Mark IV Assault Squad Horus Heresy']
+    quantity_wanted: 1
+    expected_models: 10
+    msrp: 73.5
+    percent_off_threshold: 25
+    minimum_savings: 10
+  - id: contemptor-dreadnought
+    name: Contemptor Dreadnought
+    aliases: [Legiones Astartes Contemptor Dreadnought]
+    queries: ['Horus Heresy Contemptor Dreadnought plastic']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 63
+    percent_off_threshold: 25
+    minimum_savings: 10
+    excluded_terms: [Incaendius, Osiron, Achillus, Galatus, body, weapon, arm]
+  - id: heavy-weapons
+    name: Legiones Astartes Heavy Weapons Upgrade Set
+    aliases: [Horus Heresy Heavy Weapons Upgrade Set]
+    queries: ['Legiones Astartes Heavy Weapons Upgrade Set Horus Heresy']
+    quantity_wanted: 1
+    msrp: 48.5
+    percent_off_threshold: 25
+    minimum_savings: 10
+    excluded_terms: [lascannon]
+  - id: deimos-rhino
+    name: Deimos Pattern Rhino
+    aliases: [Deimos Rhino, Legiones Astartes Deimos Rhino]
+    queries: ['Horus Heresy Deimos Pattern Rhino']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 56
+    percent_off_threshold: 25
+    minimum_savings: 10
+    excluded_terms: [doors, upgrade, conversion]
+  - id: land-raider-proteus
+    name: Land Raider Proteus
+    aliases: [Land Raider Proteus Carrier, Land Raider Proteus Explorator]
+    queries: ['Horus Heresy Land Raider Proteus']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 85
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [doors, upgrade, conversion]
+  - id: zardu-layak
+    name: Zardu Layak and Blade-slaves
+    aliases: [Zardu Layak and Blade Slaves, Zardu Layak]
+    queries: ['Zardu Layak and Blade-slaves Horus Heresy']
+    quantity_wanted: 1
+    expected_models: 3
+    msrp: 109
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [single, only]
+  - id: spartan-assault-tank
+    name: Spartan Assault Tank
+    aliases: [Land Raider Spartan, Spartan Tank]
+    queries: ['Horus Heresy Spartan Assault Tank']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 116
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [doors, upgrade, conversion]
+  - id: deredeo-dreadnought
+    name: Deredeo Dreadnought
+    aliases: [Legiones Astartes Deredeo Dreadnought]
+    queries: ['Horus Heresy Deredeo Dreadnought plastic']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 89
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [weapon, arm, torso, upgrade]
+  - id: cataphractii-terminators
+    name: Cataphractii Terminators
+    aliases: [Cataphractii Terminator Squad]
+    queries: ['Horus Heresy Cataphractii Terminators']
+    quantity_wanted: 1
+    expected_models: 10
+    msrp: 85
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms: [single, individual, shoulder pads, upgrade]
+  - id: deimos-whirlwind
+    name: Deimos Pattern Whirlwind
+    aliases: [Whirlwind Missile Tank, Deimos Whirlwind]
+    queries: ['Horus Heresy Deimos Pattern Whirlwind Missile Tank']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 69
+    percent_off_threshold: 25
+    minimum_savings: 10
+    excluded_terms: [Scorpius, turret, launcher, upgrade]
+  - id: space-marine-land-raider
+    name: Space Marine Land Raider
+    aliases: [Warhammer 40000 Land Raider, Land Raider]
+    queries: ['Warhammer 40k Space Marine Land Raider']
+    quantity_wanted: 1
+    expected_models: 1
+    msrp: 95
+    percent_off_threshold: 25
+    minimum_savings: 15
+    excluded_terms:
+      [
+        Proteus,
+        Spartan,
+        Crusader,
+        Redeemer,
+        Achilles,
+        Terminus,
+        doors,
+        upgrade,
+        conversion,
+      ]
+
   # Reference retail price: $220; not a current seller quote.
   # https://www.feldherr.com/blogs/news/on-the-table-31
   - id: maximus-battle-group
