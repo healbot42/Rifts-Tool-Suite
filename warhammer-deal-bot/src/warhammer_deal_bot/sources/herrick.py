@@ -1,5 +1,7 @@
-from .disabled import DisabledSourceAdapter
+from .shopify import ShopifySitemapAdapter
 
 
-class HerrickAdapter(DisabledSourceAdapter):
+class HerrickAdapter(ShopifySitemapAdapter):
     name = "herrick"
+    base_url = "https://herrickgames.com"
+    allowed_hosts = {"herrickgames.com"}

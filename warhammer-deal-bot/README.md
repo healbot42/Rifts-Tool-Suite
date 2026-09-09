@@ -8,20 +8,25 @@ GitHub remote but does not ship in the Vue site.
 
 ## Current source status
 
-| Source                                                                                             | Status            | Reason                                                                               |
-| -------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------ |
-| eBay                                                                                               | Implemented       | Official Browse API and application OAuth                                            |
-| Games Workshop                                                                                     | Reference-only    | MSRP lives in YAML; no verified public US product API                                |
-| Warpfire, Gamers Guild AZ, Herrick, Miniature Market, Valhalla, Flipside, Lazarus, Little Big Wars | Disabled adapters | No verified public API or explicit approved automation interface was established     |
-| Troll Trader                                                                                       | Disabled adapter  | No verified API; international shipping prevents reliable delivered-price comparison |
-| Reddit r/Miniswap                                                                                  | Disabled adapter  | Requires approved Reddit OAuth API access; HTML/JSON search is not scraped           |
+| Source                                                  | Status            | Reason                                                                               |
+| ------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------ |
+| eBay                                                    | Implemented       | Official Browse API and application OAuth                                            |
+| Games Workshop                                          | Reference-only    | MSRP lives in YAML; no verified public US product API                                |
+| Gamers Guild USA, Herrick, Little Big Wars              | Implemented       | Public Shopify product sitemaps and product records; conservative shipping rules     |
+| Warpfire, Miniature Market, Valhalla, Flipside, Lazarus | Disabled adapters | No sufficiently reliable access and delivered-price rule has been established        |
+| Troll Trader                                            | Disabled adapter  | No verified API; international shipping prevents reliable delivered-price comparison |
+| Reddit r/Miniswap                                       | Disabled adapter  | Requires approved Reddit OAuth API access; HTML/JSON search is not scraped           |
 
 Each source has its own module and implements the common `SourceAdapter`
 interface. A disabled adapter fails clearly if someone turns it on without
 implementing a compliant integration. This is intentional: the bot does not
-bypass robots rules, CAPTCHAs, Cloudflare, authentication, or rate limits.
-Before enabling a retailer, re-check its current terms and robots policy, obtain
-permission where needed, implement its adapter, and add sanitized fixture tests.
+bypass robots rules, CAPTCHAs, Cloudflare, authentication, or rate limits. The
+Shopify adapter follows product sitemaps advertised in each store's
+`robots.txt`, fetches only matching public product records, uses a descriptive
+user agent, and applies a per-request delay. It does not use blocked search,
+cart, checkout, or account routes. Before enabling another retailer, re-check
+its current terms and robots policy, establish a conservative delivered-price
+rule, and add sanitized fixture tests.
 
 The example MSRP values are editable starting references, not guaranteed current
 GW prices. Verify them before enabling email alerts.
@@ -190,6 +195,13 @@ configuration, database access failures, and missing required credentials are
 fatal. Network requests use timeouts, bounded exponential retries, per-product
 randomized delays, and conservative limits. Logs include returned and alertable
 counts.
+
+Gamers Guild and Little Big Wars listings below their published free-shipping
+thresholds are skipped because their shipping charge is calculated at checkout.
+Herrick listings include its published $10 shipping charge below $100 and free
+shipping at $100. These settings assume delivery within the contiguous United
+States and live in YAML so they can be disabled or updated if a store changes
+its policy.
 
 SQLite records normalized listings, every price observation, alert history,
 source run schema, and configured products. Sensitive raw-metadata keys are

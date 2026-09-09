@@ -1,5 +1,7 @@
-from .disabled import DisabledSourceAdapter
+from .shopify import ShopifySitemapAdapter
 
 
-class GamersGuildAdapter(DisabledSourceAdapter):
+class GamersGuildAdapter(ShopifySitemapAdapter):
     name = "gamersguild"
+    base_url = "https://www.gamersguildusa.com"
+    allowed_hosts = {"gamersguildusa.com"}

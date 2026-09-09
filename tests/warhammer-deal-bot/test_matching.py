@@ -25,6 +25,20 @@ def test_false_positive_rejections(gal_vorbak):
     assert all(not matches_product(title, gal_vorbak) for title in rejected)
 
 
+def test_configured_gal_vorbak_search_rejects_named_paint():
+    from pathlib import Path
+
+    from warhammer_deal_bot.config import load_config
+
+    config = load_config(
+        Path(__file__).parents[2] / "warhammer-deal-bot" / "config.example.yaml"
+    )
+    product = next(
+        product for product in config.products if product.id == "gal-vorbak"
+    )
+    assert not matches_product("Base: Gal Vorbak Red", product)
+
+
 def test_mkiv_variants_normalize(gal_vorbak):
     gal_vorbak.name = "MKIV Tactical Squad"
     gal_vorbak.aliases = ["Mark IV Tactical Squad"]

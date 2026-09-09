@@ -27,15 +27,14 @@ sources:
       reason: 'No verified public API or approved automated interface',
     }
   gamersguild:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    free_shipping_threshold: 99
+    request_delay_seconds: 0.5
   herrick:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    flat_shipping: 10
+    free_shipping_threshold: 100
+    request_delay_seconds: 0.5
   miniature_market:
     {
       enabled: false,
@@ -57,10 +56,9 @@ sources:
       reason: 'No verified public API or approved automated interface',
     }
   little_big_wars:
-    {
-      enabled: false,
-      reason: 'No verified public API or approved automated interface',
-    }
+    enabled: true
+    free_shipping_threshold: 55
+    request_delay_seconds: 0.5
   troll_trader:
     {
       enabled: false,
@@ -96,6 +94,7 @@ products:
     hard_threshold: 75
     percent_off_threshold: 25
     minimum_savings: 15
+    excluded_terms: [Gal Vorbak Red]
   - id: mhara-gal
     name: Mhara Gal Tainted Dreadnought
     aliases: [Mhara Gal, Mhara-Gal]
