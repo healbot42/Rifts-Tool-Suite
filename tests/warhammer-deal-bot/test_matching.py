@@ -25,6 +25,74 @@ def test_false_positive_rejections(gal_vorbak):
     assert all(not matches_product(title, gal_vorbak) for title in rejected)
 
 
+def test_email_false_positives_reject_parts_singles_and_accessories():
+    from pathlib import Path
+
+    from warhammer_deal_bot.config import load_config
+
+    config = load_config(
+        Path(__file__).parents[2] / "warhammer-deal-bot" / "config.example.yaml"
+    )
+    products = {product.id: product for product in config.products}
+    rejected = (
+        (
+            "saturnine-terminators",
+            "Warhammer Horus Heresy SATURNINE TERMINATOR SQUAD single model",
+        ),
+        (
+            "sicaran",
+            'Battle Foam 4" Army Tray - Horus Heresy 2 Sicaran Battle Tank',
+        ),
+        (
+            "predator",
+            "Turret Weapons Deimos Predator Battle Tank Horus Heresy",
+        ),
+        (
+            "predator",
+            "Predator Battle Tank Horus Heresy - Instructions Only",
+        ),
+        (
+            "predator",
+            "Legion Imperialis 3x Predator Battle Tank Horus Heresy Epic Marines",
+        ),
+        (
+            "mkiv-assault",
+            "MKIV Assault Squad x5 NO JUMP PACKS Horus Heresy",
+        ),
+        (
+            "contemptor-dreadnought",
+            "Contemptor Dreadnought Frame 2 Upgrade Kit Warhammer 30K",
+        ),
+        (
+            "deimos-rhino",
+            "Deimos Pattern Rhino Combi Bolter Hatch Horus Heresy",
+        ),
+        (
+            "deimos-rhino",
+            "Deimos Pattern Rhino Bulldozer Blade Horus Heresy",
+        ),
+        (
+            "cataphractii-terminators",
+            "Cataphractii Terminators Missing Arm Horus Heresy",
+        ),
+        (
+            "mhara-gal",
+            "Kit Bash Conversion Mhara Gal Tainted Dreadnought 30k",
+        ),
+    )
+    for product_id, title in rejected:
+        assert not matches_product(title, products[product_id])
+
+    assert matches_product(
+        "Warhammer 30K Contemptor Dreadnought Plastic",
+        products["contemptor-dreadnought"],
+    )
+    assert matches_product(
+        "Horus Heresy Special Weapons Upgrade Set",
+        products["special-weapons"],
+    )
+
+
 def test_configured_possessed_search_targets_complete_current_plastic_kit():
     from pathlib import Path
 

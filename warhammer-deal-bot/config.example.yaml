@@ -111,6 +111,7 @@ products:
     hard_threshold: 125
     percent_off_threshold: 25
     minimum_savings: 20
+    excluded_terms: [conversion, kit bash, helbrute]
   - id: saturnine-terminators
     name: Saturnine Terminator Squad
     aliases: [Saturnine Terminators, Saturnine Terminator Squad]
@@ -139,6 +140,7 @@ products:
     hard_threshold: 52
     percent_off_threshold: 25
     minimum_savings: 15
+    excluded_terms: [turret weapon, turret weapons]
   - id: mkiv-tactical
     name: MKIV Tactical Squad
     aliases: [Mk IV Marines, MK4 Marines, Mark IV Tactical Squad]
@@ -198,7 +200,8 @@ products:
     msrp: 63
     percent_off_threshold: 25
     minimum_savings: 10
-    excluded_terms: [Incaendius, Osiron, Achillus, Galatus, body, weapon, arm]
+    excluded_terms:
+      [Incaendius, Osiron, Achillus, Galatus, body, weapon, arm, frame 2]
   - id: heavy-weapons
     name: Legiones Astartes Heavy Weapons Upgrade Set
     aliases: [Horus Heresy Heavy Weapons Upgrade Set]
@@ -217,7 +220,19 @@ products:
     msrp: 56
     percent_off_threshold: 25
     minimum_savings: 10
-    excluded_terms: [doors, upgrade, conversion]
+    excluded_terms:
+      [
+        doors,
+        upgrade,
+        conversion,
+        hatch,
+        pintle mount,
+        pintle mounts,
+        bulldozer blade,
+        searchlight,
+        heavy bolter,
+        multi melta,
+      ]
   - id: land-raider-proteus
     name: Land Raider Proteus
     aliases: [Land Raider Proteus Carrier, Land Raider Proteus Explorator]

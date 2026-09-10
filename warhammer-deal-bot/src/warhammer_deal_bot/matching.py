@@ -13,6 +13,9 @@ GLOBAL_REJECTIONS = (
     "empty box",
     "box only",
     "manual only",
+    "instructions only",
+    "instruction only",
+    "assembly instructions",
     "rulebook",
     "transfer sheet",
     "shoulder pad",
@@ -21,8 +24,30 @@ GLOBAL_REJECTIONS = (
     "heads",
     "iconography",
     "legions imperialis",
+    "legion imperialis",
     "epic scale",
     "paint set",
+    "single model",
+    "single models",
+    "individual model",
+    "individual models",
+    "single miniature",
+    "single miniatures",
+    "individual miniature",
+    "individual miniatures",
+    "one model",
+    "one miniature",
+    "battle foam",
+    "army tray",
+    "foam tray",
+    "replacement part",
+    "replacement parts",
+    "spare part",
+    "spare parts",
+    "spares",
+    "missing arm",
+    "missing parts",
+    "no jump packs",
 )
 
 
@@ -33,20 +58,24 @@ def normalize(text: str) -> str:
 
 
 def contains_phrase(text: str, phrase: str) -> bool:
-    return normalize(phrase) in normalize(text)
+    normalized_text = normalize(text)
+    normalized_phrase = normalize(phrase)
+    if not normalized_phrase:
+        return False
+    pattern = rf"(?:^| ){re.escape(normalized_phrase)}s?(?: |$)"
+    return re.search(pattern, normalized_text) is not None
 
 
 def reject_reason(title: str, product: Product, allow_3d_prints: bool = False) -> str | None:
-    normalized = normalize(title)
     rejected = (
         GLOBAL_REJECTIONS
         if not allow_3d_prints
         else tuple(term for term in GLOBAL_REJECTIONS if term != "3d print")
     )
     for term in (*rejected, *product.excluded_terms):
-        if normalize(term) in normalized:
+        if contains_phrase(title, term):
             return term
-    if any(term in normalized for term in ("bits", "single arm", "single weapon")):
+    if any(contains_phrase(title, term) for term in ("bits", "single arm", "single weapon")):
         return "loose bits"
     return None
 
@@ -54,11 +83,10 @@ def reject_reason(title: str, product: Product, allow_3d_prints: bool = False) -
 def matches_product(title: str, product: Product, allow_3d_prints: bool = False) -> bool:
     if reject_reason(title, product, allow_3d_prints):
         return False
-    normalized = normalize(title)
     candidates: Iterable[str] = (product.name, *product.aliases)
-    if not any(normalize(candidate) in normalized for candidate in candidates):
+    if not any(contains_phrase(title, candidate) for candidate in candidates):
         return False
-    return all(normalize(term) in normalized for term in product.required_terms)
+    return all(contains_phrase(title, term) for term in product.required_terms)
 
 
 def classify_condition(title: str, source_condition: str | None = None) -> Condition:
