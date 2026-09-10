@@ -81,7 +81,11 @@ def run(
                 LOGGER.exception("source=%s failed; continuing with remaining sources", name)
     deal_values = [deal for _, deal in deals]
     if deal_values and config.email.enabled:
-        subject, text_body, html_body = format_digest(deal_values)
+        subject, text_body, html_body = format_digest(
+            deal_values,
+            max_per_product=config.email.max_deals_per_product,
+            suspicious_discount=config.email.suspicious_discount_percent,
+        )
         send_email(config.email, subject, text_body, html_body)
         for listing_id, deal in deals:
             database.record_alert(listing_id, deal.listing.delivered_price, "; ".join(deal.reasons))

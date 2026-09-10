@@ -34,6 +34,7 @@ class Product:
     enabled_conditions: set[Condition] = field(default_factory=lambda: set(Condition))
     condition_discount_adjustments: dict[Condition, Decimal] = field(default_factory=dict)
     expected_models: int | None = None
+    minimum_models: int | None = None
     required_terms: list[str] = field(default_factory=list)
     excluded_terms: list[str] = field(default_factory=list)
     item_percent_off_threshold: Decimal | None = None
@@ -73,6 +74,7 @@ class Deal:
     reasons: list[str]
     discount_vs_msrp: Decimal | None
     rolling_median: Decimal | None = None
+    similar_listing_count: int = 1
 
     @property
     def price_per_model(self) -> Decimal | None:

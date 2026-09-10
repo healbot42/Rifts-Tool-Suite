@@ -18,6 +18,9 @@ def test_example_config_loads():
     assert config.sources["lazarus"]["enabled"] is True
     assert config.sources["little_big_wars"]["flat_shipping"] == 0
     assert config.products[1].quantity_wanted == 2
+    assert config.products[1].minimum_models == 5
+    assert config.email.max_deals_per_product == 3
+    assert config.email.suspicious_discount_percent == 60
     ids = {product.id for product in config.products}
     assert {
         "mkiv-assault",

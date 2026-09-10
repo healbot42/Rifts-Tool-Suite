@@ -217,9 +217,9 @@ provide it.
 ## Configuration
 
 Copy `config.example.yaml` to ignored `config.yaml`. Products, aliases, queries,
-quantity targets, MSRP, hard thresholds, percentage rules, seller rating,
-conditions, exclusions, and sources are YAML-only. Add a miniature by adding
-another product mapping—no Python edit is needed.
+quantity targets, minimum model counts, MSRP, hard thresholds, percentage rules,
+seller rating, conditions, exclusions, and sources are YAML-only. Add a
+miniature by adding another product mapping—no Python edit is needed.
 
 The matcher rejects digital files, 3D prints, recasts, empty boxes,
 books/manuals, loose bits, Legions Imperialis/Epic scale, transfers, shoulder
@@ -235,6 +235,17 @@ limits; quantity wanted does not multiply the price threshold or track purchases
 automatically. Using the saved $220/$210 reference prices, the respective item
 limits are $165/$157.50 and shipping-inclusive limits are $187/$178.50. Tax is
 not included. Other products retain their existing rules.
+
+When an eBay title states a model count, `minimum_models` rejects listings below
+that product's useful minimum. Titles without a detectable count remain eligible
+so a complete boxed kit is not rejected merely because its title omits the
+quantity.
+
+Email digests group listings with the same normalized title, source, and
+delivered price. They show at most `max_deals_per_product` entries for each
+product, prefer ordinary discounts, and move discounts at or above
+`suspicious_discount_percent` into a **Review carefully** section. Lower-ranked
+entries are recorded as alerted but summarized rather than printed in the email.
 
 ## Scheduling four runs per day
 

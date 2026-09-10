@@ -126,6 +126,13 @@ def test_mkiv_variants_normalize(gal_vorbak):
     assert matches_product("Horus Heresy Mk 4 Tactical Squad NIB", gal_vorbak)
 
 
+def test_quantity_inference_handles_common_ebay_title_forms():
+    assert infer_quantity("Squad set of 4 miniatures") == 4
+    assert infer_quantity("Marines 3x new on sprue") == 3
+    assert infer_quantity("Terminators ×5 painted") == 5
+    assert infer_quantity("Tactical Squad (10) GW") == 10
+
+
 def test_battle_groups_reject_wrong_editions_and_split_listings():
     from pathlib import Path
 

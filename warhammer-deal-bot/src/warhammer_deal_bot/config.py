@@ -15,6 +15,8 @@ class EmailConfig:
     enabled: bool = False
     digest: bool = True
     provider: str = "smtp"
+    max_deals_per_product: int = 3
+    suspicious_discount_percent: Decimal = Decimal("60")
 
 
 @dataclass(slots=True)
@@ -56,6 +58,16 @@ def load_config(path: str | Path) -> AppConfig:
             or not Decimal("0") <= delivered_floor <= item_discount <= Decimal("100")
         ):
             raise ValueError("Discounts must satisfy 0 <= delivered floor <= item discount <= 100")
+        expected_models = raw.get("expected_models")
+        minimum_models = raw.get("minimum_models")
+        if expected_models is not None:
+            expected_models = int(expected_models)
+        if minimum_models is not None:
+            minimum_models = int(minimum_models)
+            if minimum_models < 1 or (
+                expected_models is not None and minimum_models > expected_models
+            ):
+                raise ValueError("Minimum models must be positive and no more than expected models")
         products.append(
             Product(
                 id=product_id,
@@ -74,7 +86,8 @@ def load_config(path: str | Path) -> AppConfig:
                     Condition(key): Decimal(str(value))
                     for key, value in raw.get("condition_discount_adjustments", {}).items()
                 },
-                expected_models=raw.get("expected_models"),
+                expected_models=expected_models,
+                minimum_models=minimum_models,
                 required_terms=[str(value) for value in raw.get("required_terms", [])],
                 excluded_terms=[str(value) for value in raw.get("excluded_terms", [])],
                 item_percent_off_threshold=item_discount,
@@ -82,7 +95,13 @@ def load_config(path: str | Path) -> AppConfig:
             )
         )
     email_data = data.get("email", {})
-    unexpected_email_keys = set(email_data) - {"enabled", "digest", "provider"}
+    unexpected_email_keys = set(email_data) - {
+        "enabled",
+        "digest",
+        "provider",
+        "max_deals_per_product",
+        "suspicious_discount_percent",
+    }
     if unexpected_email_keys:
         raise ValueError(
             "Email configuration only accepts enabled, digest, and provider; Gmail endpoint and "
@@ -91,6 +110,12 @@ def load_config(path: str | Path) -> AppConfig:
     email = EmailConfig(**email_data)
     if email.provider not in {"gmail", "smtp"}:
         raise ValueError("Email provider must be gmail or smtp")
+    email.max_deals_per_product = int(email.max_deals_per_product)
+    email.suspicious_discount_percent = Decimal(str(email.suspicious_discount_percent))
+    if email.max_deals_per_product < 1:
+        raise ValueError("Email max_deals_per_product must be positive")
+    if not Decimal("0") <= email.suspicious_discount_percent <= Decimal("100"):
+        raise ValueError("Suspicious discount percent must be between 0 and 100")
     delay = data.get("request_delay_seconds", [1, 3])
     database_value = Path(str(data.get("database", "data/deals.sqlite3")))
     if database_value.is_absolute() or PureWindowsPath(str(database_value)).is_absolute():

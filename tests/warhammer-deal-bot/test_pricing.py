@@ -38,6 +38,19 @@ def test_median_rule_and_non_deal(gal_vorbak):
     assert discount_percent(Decimal("80"), Decimal("100")) == Decimal("20.0")
 
 
+def test_known_quantity_below_product_minimum_is_rejected(gal_vorbak):
+    gal_vorbak.minimum_models = 5
+    partial = listing()
+    partial.quantity = 1
+    assert evaluate_deal(partial, gal_vorbak) is None
+
+    partial.quantity = 5
+    assert evaluate_deal(partial, gal_vorbak) is not None
+
+    partial.quantity = None
+    assert evaluate_deal(partial, gal_vorbak) is not None
+
+
 @pytest.mark.parametrize(
     "product_id,item_limit,delivered_limit",
     [

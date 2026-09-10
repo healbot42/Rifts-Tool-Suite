@@ -9,6 +9,8 @@ email:
   enabled: false
   digest: true
   provider: gmail
+  max_deals_per_product: 3
+  suspicious_discount_percent: 60
 
 sources:
   ebay:
@@ -83,6 +85,7 @@ products:
     queries: ['Chaos Space Marines Possessed 2022']
     quantity_wanted: 2
     expected_models: 5
+    minimum_models: 5
     msrp: 62.5
     hard_threshold: 47
     percent_off_threshold: 25
@@ -117,6 +120,7 @@ products:
     aliases: [Saturnine Terminators, Saturnine Terminator Squad]
     queries: ['Saturnine Terminator Squad Horus Heresy']
     quantity_wanted: 1
+    minimum_models: 2
     msrp: 65
     hard_threshold: 48
     percent_off_threshold: 25
@@ -148,6 +152,7 @@ products:
       ['MKIV Tactical Squad Horus Heresy', 'Mark IV Marines Horus Heresy']
     quantity_wanted: 3
     expected_models: 20
+    minimum_models: 10
     msrp: 85
     hard_threshold: 64
     percent_off_threshold: 25
@@ -188,6 +193,7 @@ products:
       ['MKIV Assault Squad Horus Heresy', 'Mark IV Assault Squad Horus Heresy']
     quantity_wanted: 1
     expected_models: 10
+    minimum_models: 5
     msrp: 73.5
     percent_off_threshold: 25
     minimum_savings: 10
@@ -249,6 +255,7 @@ products:
     queries: ['Zardu Layak and Blade-slaves Horus Heresy']
     quantity_wanted: 1
     expected_models: 3
+    minimum_models: 3
     msrp: 109
     percent_off_threshold: 25
     minimum_savings: 15
@@ -279,6 +286,7 @@ products:
     queries: ['Horus Heresy Cataphractii Terminators']
     quantity_wanted: 1
     expected_models: 10
+    minimum_models: 5
     msrp: 85
     percent_off_threshold: 25
     minimum_savings: 15

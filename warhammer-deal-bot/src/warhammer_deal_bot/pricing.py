@@ -14,6 +14,12 @@ def discount_percent(price: Decimal, reference: Decimal | None) -> Decimal | Non
 def evaluate_deal(
     listing: Listing, product: Product, rolling_median: Decimal | None = None
 ) -> Deal | None:
+    if (
+        product.minimum_models is not None
+        and listing.quantity is not None
+        and listing.quantity < product.minimum_models
+    ):
+        return None
     if listing.currency != "USD" or listing.condition not in product.enabled_conditions:
         return None
     if product.minimum_seller_rating is not None and (

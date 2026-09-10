@@ -52,7 +52,7 @@ GLOBAL_REJECTIONS = (
 
 
 def normalize(text: str) -> str:
-    text = text.casefold().replace("mkiv", "mark 4").replace("mk iv", "mark 4")
+    text = text.casefold().replace("×", "x").replace("mkiv", "mark 4").replace("mk iv", "mark 4")
     text = re.sub(r"\bmk\s*4\b", "mark 4", text)
     return " ".join(re.findall(r"[a-z0-9]+", text))
 
@@ -108,8 +108,18 @@ def classify_condition(title: str, source_condition: str | None = None) -> Condi
 
 def infer_quantity(title: str) -> int | None:
     text = normalize(title)
-    for pattern in (r"\blot of (\d+)\b", r"\b(\d+) models?\b", r"\bx(\d+)\b"):
+    patterns = (
+        r"\blot of (\d+)\b",
+        r"\bset of (\d+)\b",
+        r"\b(\d+) (?:models?|miniatures?|marines?)\b",
+        r"\bx(\d+)\b",
+        r"\b(\d+)x\b",
+    )
+    for pattern in patterns:
         if match := re.search(pattern, text):
             value = int(match.group(1))
             return value if 0 < value <= 200 else None
+    if match := re.search(r"\((\d{1,3})\)", title):
+        value = int(match.group(1))
+        return value if 0 < value <= 200 else None
     return None
