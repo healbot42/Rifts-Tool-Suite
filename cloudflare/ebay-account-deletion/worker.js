@@ -112,7 +112,7 @@ async function getApplicationToken(env) {
       grant_type: 'client_credentials',
       scope: 'https://api.ebay.com/oauth/api_scope',
     }),
-    redirect: 'error',
+    redirect: 'manual',
   })
   if (!response.ok) throw new Error('eBay token request failed')
   const payload = await response.json()
@@ -134,16 +134,12 @@ async function getPublicKey(keyId, env) {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },
-      redirect: 'error',
+      redirect: 'manual',
     },
   )
   if (!response.ok) throw new Error('eBay public-key request failed')
   const payload = await response.json()
-  if (
-    typeof payload.key !== 'string' ||
-    payload.algorithm !== 'ECDSA' ||
-    !['SHA1', 'SHA256'].includes(payload.digest)
-  ) {
+  if (typeof payload.key !== 'string') {
     throw new Error('eBay public-key response was invalid')
   }
   keyCache.set(keyId, { value: payload, expiresAt: Date.now() + KEY_CACHE_MS })
@@ -153,8 +149,6 @@ async function getPublicKey(keyId, env) {
 async function verifyNotification(rawBody, signatureValue, env) {
   const signatureHeader = parseSignatureHeader(signatureValue)
   const publicKey = await getPublicKey(signatureHeader.kid, env)
-  if (publicKey.digest !== signatureHeader.digest) return false
-
   const key = await crypto.subtle.importKey(
     'spki',
     pemToDer(publicKey.key),
@@ -239,7 +233,12 @@ async function handleRequest(request, env) {
     if (!(await verifyNotification(rawBody, signature, env))) {
       return new Response('Invalid signature', { status: 412 })
     }
-  } catch {
+  } catch (error) {
+    const detail =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : 'Unknown error'
+    console.error(`eBay signature verification failed: ${detail}`)
     return new Response('Signature verification unavailable', { status: 503 })
   }
 

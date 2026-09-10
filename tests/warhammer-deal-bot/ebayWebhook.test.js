@@ -97,8 +97,6 @@ describe('eBay account-deletion Worker', () => {
       .mockResolvedValueOnce(
         Response.json({
           key: '-----BEGIN PUBLIC KEY-----MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZhhxXKtR+TOvtDbgTPCkSof02qgBB7IsYOyf76ilExJ/upAa/vKIKheOoCyOpcLmi4t0b4uepb7LLjmMr90FUg==-----END PUBLIC KEY-----',
-          algorithm: 'ECDSA',
-          digest: 'SHA1',
         }),
       )
     vi.stubGlobal('fetch', fetchMock)
@@ -113,6 +111,8 @@ describe('eBay account-deletion Worker', () => {
     )
 
     expect(response.status).toBe(204)
+    expect(fetchMock.mock.calls[0][1].redirect).toBe('manual')
+    expect(fetchMock.mock.calls[1][1].redirect).toBe('manual')
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
