@@ -188,7 +188,7 @@ OS credential-store implementation.
 ```powershell
 python -m warhammer_deal_bot run
 python -m warhammer_deal_bot run --source ebay
-python -m warhammer_deal_bot run --product "Gal Vorbak"
+python -m warhammer_deal_bot run --product "Chaos Space Marines Possessed"
 python -m warhammer_deal_bot test-email
 python -m warhammer_deal_bot report
 ```
@@ -278,6 +278,22 @@ Actions cache so routine scans retain observations and alert history. GitHub can
 evict caches, so a later cache miss may cause previously seen deals to alert
 again. Hosted runners also use changing shared IPs that a retailer may block.
 
+### eBay account-deletion notifications
+
+The production eBay application uses the Cloudflare Worker in
+`cloudflare/ebay-account-deletion/worker.js`. Its configured endpoint is
+`https://rifts-ebay-notifications.zhawkins42.workers.dev/`. The Worker requires
+encrypted `EBAY_VERIFICATION_TOKEN`, `EBAY_CLIENT_ID`, and `EBAY_CLIENT_SECRET`
+runtime secrets. The endpoint validates eBay's challenge, verifies POST payloads
+with the ECC public key returned by eBay's Notification API, and rejects invalid
+signatures with HTTP 412. Keep the endpoint URL's trailing slash synchronized
+with eBay's developer settings.
+
+The scanner does not persist eBay usernames, immutable user IDs, or EIAS tokens.
+Database migration re-sanitizes historical eBay payloads at startup, so a valid
+account-deletion notification has no retained account identifier to remove. Use
+eBay's **Send Test Notification** control after every Worker deployment.
+
 ## Development
 
 ```powershell
@@ -303,15 +319,15 @@ is exposed.
 ## Sample email
 
 ```text
-Subject: Deal found — Gal Vorbak — $68 shipped (35.2% below MSRP)
+Subject: Deal found — Chaos Space Marines Possessed — $45 shipped (28% below MSRP)
 
-Gal Vorbak
-Gal Vorbak Dark Brethren - New on Sprue
+Chaos Space Marines Possessed
+Chaos Space Marines Possessed - New on Sprue
 Source: ebay
 Condition: New on sprue
-Item: $60; shipping: $8
-Delivered: $68; MSRP: $105
-Rolling 30-day median: $84; seller rating: 99.8
-Triggered because: 35.2% below MSRP
+Item: $40; shipping: $5
+Delivered: $45; MSRP: $62.50
+Rolling 30-day median: $52; seller rating: 99.8
+Triggered because: 28% below MSRP
 https://www.ebay.com/itm/example
 ```

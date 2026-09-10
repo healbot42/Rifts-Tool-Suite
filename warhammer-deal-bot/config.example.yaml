@@ -77,17 +77,31 @@ products:
     percent_off_threshold: 25
     minimum_savings: 15
     condition_discount_adjustments: { Primed: 10, Painted: 15, Unknown: 10 }
-  - id: gal-vorbak
-    name: Gal Vorbak
-    aliases: [Gal Vorbak Dark Brethren, Dark Brethren]
-    queries: ['Gal Vorbak', 'Gal Vorbak Dark Brethren']
+  - id: chaos-space-marines-possessed
+    name: Chaos Space Marines Possessed
+    aliases: [CSM Possessed, Chaos Possessed]
+    queries: ['Chaos Space Marines Possessed 2022']
     quantity_wanted: 2
     expected_models: 5
-    msrp: 105
-    hard_threshold: 75
+    msrp: 62.5
+    hard_threshold: 47
     percent_off_threshold: 25
-    minimum_savings: 15
-    excluded_terms: [Gal Vorbak Red]
+    minimum_savings: 10
+    required_terms: [Possessed]
+    excluded_terms:
+      [
+        single,
+        individual,
+        one model,
+        bits,
+        weapon,
+        torso,
+        backpack,
+        conversion,
+        proxy,
+        greater possessed,
+        2007,
+      ]
   - id: mhara-gal
     name: Mhara Gal Tainted Dreadnought
     aliases: [Mhara Gal, Mhara-Gal]

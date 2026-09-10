@@ -25,7 +25,7 @@ def test_false_positive_rejections(gal_vorbak):
     assert all(not matches_product(title, gal_vorbak) for title in rejected)
 
 
-def test_configured_gal_vorbak_search_rejects_named_paint():
+def test_configured_possessed_search_targets_complete_current_plastic_kit():
     from pathlib import Path
 
     from warhammer_deal_bot.config import load_config
@@ -33,10 +33,23 @@ def test_configured_gal_vorbak_search_rejects_named_paint():
     config = load_config(
         Path(__file__).parents[2] / "warhammer-deal-bot" / "config.example.yaml"
     )
-    product = next(
-        product for product in config.products if product.id == "gal-vorbak"
+    products = {product.id: product for product in config.products}
+    product = products["chaos-space-marines-possessed"]
+
+    assert "gal-vorbak" not in products
+    assert product.msrp == 62.5
+    assert product.expected_models == 5
+    assert matches_product(
+        "Warhammer 40K Chaos Space Marines Possessed 2022 sealed", product
     )
-    assert not matches_product("Base: Gal Vorbak Red", product)
+    assert matches_product("CSM Possessed x5 new on sprue", product)
+    for title in (
+        "Chaos Space Marines Possessed single model",
+        "Chaos Possessed individual arm bits",
+        "Greater Possessed x2",
+        "Chaos Space Marines Possessed 2007 metal models",
+    ):
+        assert not matches_product(title, product)
 
 
 def test_mkiv_variants_normalize(gal_vorbak):

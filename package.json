@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "format": "prettier --write .github AGENTS.md README.md docs src tests package.json vite.config.js eslint.config.js index.html warhammer-deal-bot/README.md warhammer-deal-bot/config.example.yaml && python -m ruff format scripts warhammer-deal-bot tests/warhammer-deal-bot",
-    "format:check": "prettier --check .github AGENTS.md README.md docs src tests package.json vite.config.js eslint.config.js index.html warhammer-deal-bot/README.md warhammer-deal-bot/config.example.yaml && python -m ruff format --check scripts warhammer-deal-bot tests/warhammer-deal-bot",
+    "format": "prettier --write .github cloudflare AGENTS.md README.md docs src tests package.json vite.config.js eslint.config.js index.html warhammer-deal-bot/README.md warhammer-deal-bot/config.example.yaml && python -m ruff format scripts warhammer-deal-bot tests/warhammer-deal-bot",
+    "format:check": "prettier --check .github cloudflare AGENTS.md README.md docs src tests package.json vite.config.js eslint.config.js index.html warhammer-deal-bot/README.md warhammer-deal-bot/config.example.yaml && python -m ruff format --check scripts warhammer-deal-bot tests/warhammer-deal-bot",
     "lint": "npm run lint:web && npm run lint:python",
     "lint:fix": "eslint . --fix && python -m ruff check --fix scripts warhammer-deal-bot tests/warhammer-deal-bot",
     "lint:python": "python -m ruff check scripts warhammer-deal-bot tests/warhammer-deal-bot",

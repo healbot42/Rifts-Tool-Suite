@@ -54,12 +54,21 @@ def test_database_redacts_raw_metadata_at_persistence_boundary(tmp_path):
         product_match="product",
         url="https://www.ebay.com/itm/secure",
         item_price=Decimal("10"),
-        raw={"authorization": "Bearer must-not-persist"},
+        raw={
+            "authorization": "Bearer must-not-persist",
+            "seller": {
+                "username": "seller-must-not-persist",
+                "feedbackPercentage": "100",
+            },
+        },
     )
     database.observe(listing)
     with database.connect() as connection:
         row = connection.execute("SELECT raw_json FROM listings").fetchone()
-    assert json.loads(row[0])["authorization"] == "[redacted]"
+    raw = json.loads(row[0])
+    assert raw["authorization"] == "[redacted]"
+    assert raw["seller"]["username"] == "[redacted]"
+    assert raw["seller"]["feedbackPercentage"] == "100"
 
 
 @pytest.mark.parametrize(

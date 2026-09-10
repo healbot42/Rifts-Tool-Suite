@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 SENSITIVE_KEY_PATTERN = re.compile(
-    r"(^|_)(authorization|cookie|credential|email|password|phone|secret|token)(_|$)",
+    r"(^|_)(authorization|cookie|credential|eias|eias_token|eiastoken|email|password|phone|secret|token|user_id|userid|username)(_|$)",
     re.IGNORECASE,
 )
 MAX_RAW_STRING_LENGTH = 4096

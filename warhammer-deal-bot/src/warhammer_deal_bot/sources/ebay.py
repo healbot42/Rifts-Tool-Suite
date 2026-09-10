@@ -130,9 +130,7 @@ class EbayAdapter(SourceAdapter):
             shipping_price=shipping,
             currency=currency,
             condition=classify_condition(title, str(item.get("condition", ""))),
-            seller_name=str(seller.get("username"))
-            if isinstance(seller, dict) and seller.get("username")
-            else None,
+            seller_name=None,
             seller_rating=Decimal(str(rating)) if rating is not None else None,
             location=str(item.get("itemLocation", {}).get("country"))
             if isinstance(item.get("itemLocation"), dict)

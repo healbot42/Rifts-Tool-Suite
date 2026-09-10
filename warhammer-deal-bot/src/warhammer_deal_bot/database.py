@@ -99,6 +99,16 @@ class Database:
                 );
                 """
             )
+            rows = db.execute("SELECT id, raw_json FROM listings WHERE source='ebay'").fetchall()
+            for row in rows:
+                try:
+                    raw = json.loads(row["raw_json"])
+                except (json.JSONDecodeError, TypeError):
+                    raw = {}
+                db.execute(
+                    "UPDATE listings SET raw_json=? WHERE id=?",
+                    (json.dumps(sanitize_raw_metadata(raw), default=str), row["id"]),
+                )
 
     def sync_product(self, product_id: str, name: str, config: dict[str, object]) -> None:
         now = datetime.now(UTC).isoformat()
