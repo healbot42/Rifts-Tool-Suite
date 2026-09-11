@@ -80,4 +80,17 @@ describe('Warhammer product catalog', () => {
     expect(ids.length).toBeGreaterThan(1000)
     expect(new Set(ids).size).toBe(ids.length)
   })
+
+  it('includes exact US MSRP matches from the official price list', async () => {
+    const catalog = (
+      await import('../../../src/data/warhammer-product-catalog.json')
+    ).default
+    const possessed = catalog.products.find(
+      (product) => product.product_code === '99120102140',
+    )
+
+    expect(catalog.price_source).toMatch(/^US Price Adjustment/)
+    expect(catalog.priced_products).toBeGreaterThan(500)
+    expect(possessed.msrp).toBe(67.5)
+  })
 })

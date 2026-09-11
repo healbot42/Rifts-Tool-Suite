@@ -24,8 +24,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: python scripts/refresh-warhammer-product-catalog.py
       - run: npm ci
+      - run: python scripts/refresh-warhammer-product-catalog.py
+      - run: npx prettier --write src/data/warhammer-product-catalog.json
       - run: npm run lint:web
       - run: npm run test -- --run tests/pages/deal-watchlist
       - run: npm run build
