@@ -245,7 +245,13 @@
     "msrp": 85,
     "percent_off_threshold": 25,
     "minimum_savings": 15,
-    "excluded_terms": ["doors", "upgrade", "conversion"],
+    "excluded_terms": [
+      "doors",
+      "upgrade",
+      "conversion",
+      "explorer squadron",
+      "explorator squadron"
+    ],
     "enabled": true
   },
   {

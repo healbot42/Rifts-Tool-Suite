@@ -50,6 +50,15 @@ GLOBAL_REJECTIONS = (
     "no jump packs",
 )
 
+# Packaging phrases used by the current Epic-scale range even when a seller
+# omits both "Legions Imperialis" and "Epic Scale" from the listing title.
+LEGIONS_IMPERIALIS_TITLE_FINGERPRINTS = (
+    "land raider proteus explorer squadron",
+    "land raider proteus explorator squadron",
+    "sicaran squadron",
+    "spartan assault tanks",
+)
+
 
 def normalize(text: str) -> str:
     text = text.casefold().replace("×", "x").replace("mkiv", "mark 4").replace("mk iv", "mark 4")
@@ -75,6 +84,9 @@ def reject_reason(title: str, product: Product, allow_3d_prints: bool = False) -
     for term in (*rejected, *product.excluded_terms):
         if contains_phrase(title, term):
             return term
+    for term in LEGIONS_IMPERIALIS_TITLE_FINGERPRINTS:
+        if contains_phrase(title, term):
+            return f"Legions Imperialis product: {term}"
     if any(contains_phrase(title, term) for term in ("bits", "single arm", "single weapon")):
         return "loose bits"
     return None

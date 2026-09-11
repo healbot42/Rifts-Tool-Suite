@@ -1,14 +1,21 @@
 .watchlist-page {
-  width: min(1180px, calc(100% - 2rem));
+  display: flex;
+  width: min(1400px, calc(100% - 2rem));
+  flex-direction: column;
   margin: 2rem auto;
   color: #dbeafe;
 }
 .watchlist-heading,
-.watchlist-list > header {
+.watchlist-list > header,
+.watchlist-editor > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+.watchlist-heading-actions {
+  display: flex;
+  gap: 0.65rem;
 }
 .watchlist-heading h1 {
   margin: 0;
@@ -32,6 +39,40 @@
   border-radius: 16px;
   background: #0f1d35;
 }
+.watchlist-layout {
+  display: grid;
+  grid-template-columns: minmax(235px, 260px) minmax(0, 1fr);
+  gap: 1rem;
+  order: 1;
+  align-items: start;
+}
+.watchlist-list {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  max-height: calc(100vh - 2rem);
+  padding: 1rem;
+  overflow-y: auto;
+  position: sticky;
+  top: 1rem;
+}
+.watchlist-editor {
+  grid-column: 2;
+  grid-row: 1;
+  scroll-margin-top: 1rem;
+}
+.watchlist-catalog {
+  grid-column: 2;
+  grid-row: 2;
+}
+.watchlist-layout:not(:has(.watchlist-editor)) .watchlist-catalog {
+  grid-row: 1;
+}
+.watchlist-editor > header {
+  margin-bottom: 1rem;
+}
+.watchlist-editor > header h2 {
+  margin: 0;
+}
 .watchlist-catalog > header {
   display: flex;
   align-items: center;
@@ -44,7 +85,7 @@
 }
 .catalog-filters {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 0.75rem 1rem;
   margin-top: 1rem;
 }
@@ -71,17 +112,13 @@
 }
 .catalog-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
   gap: 0.8rem;
-  max-height: 620px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 .catalog-grid article {
   display: flex;
   min-width: 0;
-  min-height: 330px;
+  min-height: 290px;
   flex-direction: column;
   gap: 0.8rem;
   padding: 0.8rem;
@@ -91,7 +128,7 @@
 }
 .catalog-grid img {
   width: 100%;
-  height: 165px;
+  height: 140px;
   object-fit: contain;
   border-radius: 6px;
   background: white;
@@ -123,6 +160,34 @@
 .catalog-warning {
   color: #ffb167;
   font-weight: 700;
+}
+.catalog-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+.catalog-pagination span {
+  min-width: 8rem;
+  text-align: center;
+}
+.catalog-pagination label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: 0.35rem;
+}
+.catalog-pagination label span {
+  min-width: 0;
+  white-space: nowrap;
+}
+.catalog-pagination select {
+  padding: 0.55rem;
+  border: 1px solid #416991;
+  border-radius: 8px;
+  color: #eef6ff;
+  background: #081426;
 }
 .watchlist-error {
   border-color: #d88a39;
@@ -184,11 +249,7 @@
   cursor: wait;
 }
 .watchlist-list article {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 2fr auto auto;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
+  padding: 0.8rem 0;
   border-top: 1px solid #294564;
 }
 .watchlist-list article.paused {
@@ -198,42 +259,69 @@
 .watchlist-list p {
   margin: 0;
 }
-.watchlist-list dl {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 0;
+.watchlist-product-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
-.watchlist-list dl div {
-  display: grid;
+.watchlist-product-heading h3 {
+  font-size: 0.98rem;
+  line-height: 1.25;
 }
-.watchlist-list dt {
-  color: #8fc7ff;
+.watchlist-product-summary {
+  margin-top: 0.35rem !important;
+  color: #b8c9df;
   font-size: 0.8rem;
 }
-.watchlist-list dd {
-  margin: 0;
-  font-weight: 700;
+.watchlist-list .watchlist-actions {
+  margin-top: 0.55rem;
+}
+.watchlist-list button {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.8rem;
 }
 .watchlist-actions {
   display: flex;
   gap: 0.55rem;
 }
 .status {
+  flex: 0 0 auto;
   color: #8fc7ff;
+  font-size: 0.72rem;
   font-weight: 700;
 }
 @media (max-width: 760px) {
+  .watchlist-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .watchlist-heading-actions {
+    width: 100%;
+  }
+  .watchlist-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .watchlist-editor {
+    order: 1;
+  }
+  .watchlist-list {
+    width: 100%;
+    max-height: none;
+    order: 2;
+    position: static;
+  }
+  .watchlist-catalog {
+    order: 3;
+  }
   .catalog-filters {
     grid-template-columns: 1fr;
   }
+  .catalog-pagination {
+    flex-wrap: wrap;
+  }
   .watchlist-editor form {
     grid-template-columns: 1fr;
-  }
-  .watchlist-list article {
-    grid-template-columns: 1fr;
-  }
-  .watchlist-list dl {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
   }
 }

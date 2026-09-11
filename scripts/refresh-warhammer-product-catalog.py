@@ -7,6 +7,7 @@ import re
 import urllib.request
 import zipfile
 from collections import Counter, defaultdict
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote, urlsplit, urlunsplit
@@ -26,6 +27,10 @@ SINGLE_MODEL_TERMS = re.compile(
     r"farseer|autarch|warboss|techmarine|apothecary|primarch)\b",
     re.IGNORECASE,
 )
+PRICE_EFFECTIVE_DATES = {
+    "US Price Adjustment 09_26": date(2026, 9, 21),
+    "US DTT Price Adjustment 09_2026": date(2026, 9, 21),
+}
 
 
 def slug(value: str) -> str:
@@ -89,20 +94,29 @@ def request_bytes(url: str) -> bytes:
         return response.read()
 
 
-def latest_us_price_file() -> tuple[str, str]:
+def latest_us_price_files() -> list[tuple[str, str, str, str, str]]:
     payload = json.loads(request_bytes(GW_TRADE_MEDIA_URL))
-    candidates = [
-        asset
-        for asset in payload["assets"]
-        if str(asset.get("title", ""))
-        .casefold()
-        .startswith("us price adjustment")
-        and str(asset.get("file_url", "")).casefold().endswith(".xlsx")
-    ]
-    if not candidates:
+    price_files: list[tuple[str, str, str, str, str]] = []
+    for asset in payload["assets"]:
+        title = str(asset.get("title", ""))
+        url = str(asset.get("file_url", ""))
+        if not url.casefold().endswith(".xlsx"):
+            continue
+        if title.casefold().startswith("us price adjustment"):
+            price_files.append((title, url, "E", "G", "H"))
+        elif title.casefold().startswith("us dtt price adjustment"):
+            price_files.append((title, url, "B", "E", "F"))
+    if not any(
+        title.casefold().startswith("us price adjustment")
+        for title, *_ in price_files
+    ):
         raise RuntimeError("Games Workshop did not publish a US price file")
-    asset = candidates[0]
-    return str(asset["title"]), str(asset["file_url"])
+    price_files.sort(
+        key=lambda item: (
+            item[0].casefold().startswith("us dtt price adjustment")
+        )
+    )
+    return price_files
 
 
 def _xlsx_cell_value(
@@ -121,7 +135,9 @@ def _xlsx_cell_value(
     return value.text
 
 
-def parse_us_prices(workbook: bytes) -> dict[str, float]:
+def parse_us_prices(
+    workbook: bytes, code_column: str = "E", price_column: str = "H"
+) -> dict[str, float]:
     namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
     with zipfile.ZipFile(BytesIO(workbook)) as archive:
         shared_strings: list[str] = []
@@ -144,8 +160,8 @@ def parse_us_prices(workbook: bytes) -> dict[str, float]:
                 )
                 for cell in row.findall(f"{{{namespace}}}c")
             }
-            code = cells.get("E", "").strip()
-            price = cells.get("H", "").strip()
+            code = cells.get(code_column, "").strip()
+            price = cells.get(price_column, "").strip()
             if code.isdigit() and price:
                 prices[code] = float(price)
         if not prices:
@@ -156,8 +172,29 @@ def parse_us_prices(workbook: bytes) -> dict[str, float]:
 
 
 def build() -> None:
-    price_title, price_url = latest_us_price_file()
-    us_prices = parse_us_prices(request_bytes(price_url))
+    price_files = latest_us_price_files()
+    us_prices: dict[str, float] = {}
+    today = date.today()
+    for (
+        title,
+        price_url,
+        code_column,
+        current_column,
+        new_column,
+    ) in price_files:
+        effective_date = PRICE_EFFECTIVE_DATES.get(title)
+        if effective_date is None:
+            raise RuntimeError(
+                f"Price effective date is not configured for {title}"
+            )
+        price_column = new_column if today >= effective_date else current_column
+        us_prices.update(
+            parse_us_prices(
+                request_bytes(price_url),
+                code_column=code_column,
+                price_column=price_column,
+            )
+        )
     products: dict[str, dict[str, object]] = {}
     versions: set[str] = set()
     for system in SYSTEMS:
@@ -189,8 +226,18 @@ def build() -> None:
         "source": "WarHub Catalog",
         "source_url": "https://github.com/WarHub/warhub-catalog",
         "version": ", ".join(sorted(versions)),
-        "price_source": price_title,
-        "price_source_url": price_url,
+        "price_source": "; ".join(title for title, *_ in price_files),
+        "price_source_url": price_files[0][1],
+        "price_effective_date": max(
+            PRICE_EFFECTIVE_DATES[title] for title, *_ in price_files
+        ).isoformat(),
+        "price_basis": "new"
+        if today
+        >= max(PRICE_EFFECTIVE_DATES[title] for title, *_ in price_files)
+        else "current",
+        "price_sources": [
+            {"title": title, "url": url} for title, url, *_ in price_files
+        ],
         "priced_products": sum(
             product["msrp"] is not None for product in normalized
         ),

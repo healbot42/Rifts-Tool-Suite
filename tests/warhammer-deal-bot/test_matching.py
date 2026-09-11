@@ -25,6 +25,23 @@ def test_false_positive_rejections(gal_vorbak):
     assert all(not matches_product(title, gal_vorbak) for title in rejected)
 
 
+def test_legions_imperialis_packaging_fingerprints_reject_ambiguous_titles(
+    gal_vorbak,
+):
+    gal_vorbak.name = "Sicaran"
+    gal_vorbak.aliases = ["Sicaran Battle Tank"]
+    assert not matches_product(
+        "Sicaran Squadron Horus Heresy sealed", gal_vorbak
+    )
+
+    gal_vorbak.name = "Spartan Assault Tank"
+    gal_vorbak.aliases = ["Spartan Tank"]
+    assert not matches_product(
+        "Horus Heresy Spartan Assault Tanks new", gal_vorbak
+    )
+    assert matches_product("Horus Heresy Spartan Assault Tank new", gal_vorbak)
+
+
 def test_email_false_positives_reject_parts_singles_and_accessories():
     from pathlib import Path
 
@@ -187,6 +204,14 @@ def test_added_watchlist_items_match_complete_kits_and_separate_land_raiders():
     )
     assert matches_product(
         "Horus Heresy Land Raider Proteus Explorator NIB",
+        products["land-raider-proteus"],
+    )
+    assert not matches_product(
+        "Land Raider Proteus Explorer Squadron Warhammer Horus Heresy New in Box",
+        products["land-raider-proteus"],
+    )
+    assert not matches_product(
+        "Legiones Astartes Land Raider Proteus Explorator Squadron sealed",
         products["land-raider-proteus"],
     )
     assert matches_product(
