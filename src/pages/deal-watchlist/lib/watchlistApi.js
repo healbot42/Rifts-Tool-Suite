@@ -1,10 +1,12 @@
 export const WATCHLIST_API = 'https://rifts-data-api.zhawkins42.workers.dev'
 
 async function request(path, options = {}) {
+  const headers = { ...options.headers }
+  if (options.body) headers['Content-Type'] = 'application/json'
   const response = await fetch(`${WATCHLIST_API}${path}`, {
     credentials: 'include',
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
   })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok)

@@ -28,4 +28,20 @@ describe('deal watchlist API client', () => {
       },
     )
   })
+
+  it('keeps list requests simple so Cloudflare Access does not preflight', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ products: [] }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await watchlistApi.list()
+
+    expect(fetchMock).toHaveBeenCalledWith(`${WATCHLIST_API}/v1/watchlist`, {
+      credentials: 'include',
+      headers: {},
+    })
+  })
 })
