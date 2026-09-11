@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-from .models import Listing
+from .models import Condition, Listing
 from .security import sanitize_raw_metadata
 
 SCHEMA_VERSION = 1
@@ -241,6 +241,43 @@ class Database:
         values = [Decimal(str(row["price"])) for row in rows]
         middle = len(values) // 2
         return values[middle] if len(values) % 2 else (values[middle - 1] + values[middle]) / 2
+
+    def import_observations(self, rows: list[dict[str, object]]) -> None:
+        with self.connect() as db:
+            for row in rows:
+                db.execute(
+                    """INSERT INTO listings(source, source_listing_id, product_id, title, url,
+                    condition, currency, first_seen, last_seen, available, last_item_price,
+                    last_shipping_price, raw_json) VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?,
+                    '0', '{}') ON CONFLICT(source, source_listing_id) DO UPDATE SET
+                    last_seen=MAX(last_seen, excluded.last_seen)""",
+                    (
+                        row["source"],
+                        row["source_listing_id"],
+                        row["product_id"],
+                        row["title"],
+                        row["url"],
+                        Condition.UNKNOWN.value,
+                        row["observed_at"],
+                        row["observed_at"],
+                        int(bool(row["available"])),
+                        row["delivered_price"],
+                    ),
+                )
+                listing_id = db.execute(
+                    "SELECT id FROM listings WHERE source=? AND source_listing_id=?",
+                    (row["source"], row["source_listing_id"]),
+                ).fetchone()["id"]
+                exists = db.execute(
+                    "SELECT 1 FROM price_observations WHERE listing_id=? AND observed_at=?",
+                    (listing_id, row["observed_at"]),
+                ).fetchone()
+                if not exists:
+                    db.execute(
+                        """INSERT INTO price_observations(
+                        listing_id, observed_at, delivered_price) VALUES (?, ?, ?)""",
+                        (listing_id, row["observed_at"], row["delivered_price"]),
+                    )
 
     def report_rows(self, days: int = 30) -> list[sqlite3.Row]:
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()

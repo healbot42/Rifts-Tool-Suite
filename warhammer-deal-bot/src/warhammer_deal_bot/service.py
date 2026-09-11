@@ -12,6 +12,7 @@ from .config import AppConfig
 from .database import Database
 from .models import Deal
 from .pricing import evaluate_deal
+from .remote_history import RemoteHistory
 from .sources import RETAILER_ADAPTERS, EbayAdapter, SourceAdapter
 
 LOGGER = logging.getLogger(__name__)
@@ -30,18 +31,44 @@ def run(
     config: AppConfig, source_filter: str | None = None, product_filter: str | None = None
 ) -> list[Deal]:
     database = Database(config.database)
-    products = [
+    configured_products = [
         product
         for product in config.products
         if product_filter is None
         or product_filter.casefold() in {product.id.casefold(), product.name.casefold()}
     ]
-    if not products:
+    if not configured_products:
         raise ValueError(f"No configured product matched {product_filter!r}")
+    with httpx.Client(timeout=httpx.Timeout(20), follow_redirects=False) as client:
+        remote = RemoteHistory(client)
+        if remote.enabled:
+            try:
+                purchases = remote.purchases()
+                for product in configured_products:
+                    product.purchased_quantity = max(
+                        product.purchased_quantity, purchases.get(product.id, 0)
+                    )
+            except (httpx.HTTPError, KeyError, TypeError, ValueError):
+                LOGGER.exception("D1 purchase hydration failed")
+    products = [
+        product
+        for product in configured_products
+        if product.purchased_quantity < product.quantity_wanted
+    ]
+    if not products:
+        LOGGER.info("all selected product quantities have been purchased")
+        return []
     for product in products:
         database.sync_product(product.id, product.name, asdict(product))
     deals: list[tuple[int, Deal]] = []
     with httpx.Client(timeout=httpx.Timeout(20), follow_redirects=False) as client:
+        remote_history = RemoteHistory(client)
+        if remote_history.enabled:
+            for product in products:
+                try:
+                    database.import_observations(remote_history.history(product.id))
+                except (httpx.HTTPError, KeyError, TypeError, ValueError):
+                    LOGGER.exception("D1 history hydration failed for %s", product.id)
         for name, settings in config.sources.items():
             if source_filter and name != source_filter:
                 continue
@@ -57,6 +84,10 @@ def run(
                 seen_ids: set[str] = set()
                 for product in products:
                     listings = adapter.search(product)
+                    try:
+                        remote_history.store(listings)
+                    except httpx.HTTPError:
+                        LOGGER.exception("D1 history write failed for %s", product.id)
                     returned += len(listings)
                     median = database.rolling_median(product.id)
                     for listing in listings:

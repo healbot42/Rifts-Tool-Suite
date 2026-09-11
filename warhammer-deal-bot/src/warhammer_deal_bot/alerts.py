@@ -135,6 +135,10 @@ def format_digest(
                 f"Rolling 30-day median: {median}; seller rating: {rating}",
                 f"Triggered because: {'; '.join(deal.reasons)}",
             ]
+            if listing.quantity is not None:
+                lines.append(f"Models stated: {listing.quantity}")
+            if listing.ends_at is not None:
+                lines.append(f"Listing ends: {listing.ends_at.isoformat()}")
             if deal.similar_listing_count > 1:
                 lines.append(f"Similar listings grouped: {deal.similar_listing_count}")
             lines.append(url)
@@ -142,7 +146,14 @@ def format_digest(
             html_parts.append(
                 "<section><h3>"
                 + html.escape(deal.product.name)
-                + "</h3><p>"
+                + "</h3>"
+                + (
+                    f'<img src="{html.escape(listing.image_url, quote=True)}" '
+                    'alt="" width="180" loading="lazy">'
+                    if listing.image_url
+                    else ""
+                )
+                + "<p>"
                 + "<br>".join(html.escape(line) for line in lines[1:-1])
                 + f'</p><p><a href="{html.escape(url, quote=True)}">View listing</a></p></section>'
             )

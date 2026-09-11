@@ -34,3 +34,30 @@ def test_duplicate_and_price_drop_realert(tmp_path):
     assert database.should_alert(
         listing_id, Decimal("64"), Decimal("5"), False, True
     )
+
+
+def test_remote_observations_are_idempotent_and_feed_median(tmp_path):
+    database = Database(tmp_path / "deals.sqlite3")
+    observed_at = datetime.now(UTC).isoformat()
+    rows = [
+        {
+            "source": "ebay",
+            "source_listing_id": str(index),
+            "product_id": "possessed",
+            "observed_at": observed_at,
+            "delivered_price": str(price),
+            "title": "Possessed",
+            "url": f"https://www.ebay.com/itm/{index}",
+            "available": 1,
+        }
+        for index, price in enumerate((40, 45, 50, 55, 60), start=1)
+    ]
+    database.import_observations(rows)
+    database.import_observations(rows)
+
+    assert database.rolling_median("possessed") == Decimal("50.0")
+    with database.connect() as connection:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM price_observations"
+        ).fetchone()[0]
+    assert count == 5

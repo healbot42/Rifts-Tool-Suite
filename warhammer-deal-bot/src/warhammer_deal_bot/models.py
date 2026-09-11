@@ -26,6 +26,7 @@ class Product:
     queries: list[str]
     quantity_wanted: int
     msrp: Decimal
+    purchased_quantity: int = 0
     hard_threshold: Decimal | None = None
     percent_off_threshold: Decimal | None = None
     median_percent_off: Decimal | None = None
@@ -61,6 +62,8 @@ class Listing:
     first_seen: datetime = field(default_factory=lambda: datetime.now(UTC))
     last_seen: datetime = field(default_factory=lambda: datetime.now(UTC))
     raw: dict[str, Any] = field(default_factory=dict)
+    image_url: str | None = None
+    ends_at: datetime | None = None
 
     @property
     def delivered_price(self) -> Decimal:

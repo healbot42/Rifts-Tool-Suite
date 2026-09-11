@@ -214,6 +214,16 @@ configured material price drop or an enabled reappearance. Thirty-day median
 rules start after five observations. Tax is excluded when the source does not
 provide it.
 
+When `DATA_API_URL` and `DATA_API_TOKEN` are set, each run also copies price
+observations to the authenticated Cloudflare D1 API in
+`cloudflare/rifts-data-api/worker.js` and restores the last 30 days before
+evaluating deals. The local SQLite database remains the fallback if D1 is
+unavailable. The API also stores purchased quantities; once a product's
+`purchased_quantity` reaches `quantity_wanted`, scans for that product stop. The
+D1 database can support later Rifts Tool Suite backend features through new
+Worker routes. Browser clients must use authenticated Worker endpoints and must
+never receive `DATA_API_TOKEN`.
+
 ## Configuration
 
 Copy `config.example.yaml` to ignored `config.yaml`. Products, aliases, queries,
@@ -231,10 +241,11 @@ For the Maximus and 2023 Legiones Astartes battle groups, two copies of each are
 wanted. Both `item_percent_off_threshold: 25` and
 `delivered_percent_off_floor: 15` must pass: at least 25% off the reference MSRP
 before shipping and at least 15% off including shipping. These are per-box
-limits; quantity wanted does not multiply the price threshold or track purchases
-automatically. Using the saved $220/$210 reference prices, the respective item
-limits are $165/$157.50 and shipping-inclusive limits are $187/$178.50. Tax is
-not included. Other products retain their existing rules.
+limits; quantity wanted does not multiply the price threshold. Purchase totals
+come from `purchased_quantity` in YAML or the D1 purchases endpoint. Using the
+saved $220/$210 reference prices, the respective item limits are $165/$157.50
+and shipping-inclusive limits are $187/$178.50. Tax is not included. Other
+products retain their existing rules.
 
 When an eBay title states a model count, `minimum_models` rejects listings below
 that product's useful minimum. Titles without a detectable count remain eligible
@@ -286,8 +297,11 @@ workflow disables eBay when either is absent.
 
 The workflow serializes runs and restores `data/deals.sqlite3` from a rotating
 Actions cache so routine scans retain observations and alert history. GitHub can
-evict caches, so a later cache miss may cause previously seen deals to alert
-again. Hosted runners also use changing shared IPs that a retailer may block.
+evict caches. D1-backed price observations survive a cache miss, while local
+alert history still depends on the cache and may repeat a previously sent deal
+after eviction. Hosted runners also use changing shared IPs that a retailer may
+block. D1 synchronization additionally requires encrypted `DATA_API_TOKEN` and
+the fixed `DATA_API_URL` configured in the workflow.
 
 ### eBay account-deletion notifications
 

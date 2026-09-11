@@ -74,6 +74,7 @@ products:
     aliases: [Argel Tal]
     queries: ['Argel Tal Horus Heresy']
     quantity_wanted: 1
+    purchased_quantity: 0
     msrp: 90
     hard_threshold: 70
     percent_off_threshold: 25

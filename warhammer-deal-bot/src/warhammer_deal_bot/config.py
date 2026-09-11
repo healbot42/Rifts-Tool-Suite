@@ -60,6 +60,9 @@ def load_config(path: str | Path) -> AppConfig:
             raise ValueError("Discounts must satisfy 0 <= delivered floor <= item discount <= 100")
         expected_models = raw.get("expected_models")
         minimum_models = raw.get("minimum_models")
+        purchased_quantity = int(raw.get("purchased_quantity", 0))
+        if purchased_quantity < 0:
+            raise ValueError("Purchased quantity cannot be negative")
         if expected_models is not None:
             expected_models = int(expected_models)
         if minimum_models is not None:
@@ -76,6 +79,7 @@ def load_config(path: str | Path) -> AppConfig:
                 queries=[str(value) for value in raw.get("queries", [name])],
                 quantity_wanted=int(raw.get("quantity_wanted", 1)),
                 msrp=_money(raw["msrp"]),  # type: ignore[arg-type]
+                purchased_quantity=purchased_quantity,
                 hard_threshold=_money(raw.get("hard_threshold")),
                 percent_off_threshold=_money(raw.get("percent_off_threshold")),
                 median_percent_off=_money(raw.get("median_percent_off")),

@@ -16,6 +16,7 @@ def test_email_formatting_escapes_untrusted_text(gal_vorbak):
         shipping_price=Decimal("8"),
         condition=Condition.NEW_ON_SPRUE,
         seller_rating=Decimal("99.8"),
+        image_url="https://i.ebayimg.com/images/g/test/s-l500.jpg",
     )
     subject, text, html_body = format_digest(
         [
@@ -32,6 +33,7 @@ def test_email_formatting_escapes_untrusted_text(gal_vorbak):
     assert "Delivered: $68" in text
     assert "<script>" not in html_body
     assert "&lt;script&gt;" in html_body
+    assert "https://i.ebayimg.com/images/g/test/s-l500.jpg" in html_body
 
 
 @pytest.mark.parametrize(

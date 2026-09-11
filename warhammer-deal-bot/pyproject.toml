@@ -32,6 +32,7 @@ packages = ["src/warhammer_deal_bot"]
 testpaths = ["../tests/warhammer-deal-bot"]
 
 [tool.ruff]
+extend-exclude = [".pytest-tmp*"]
 line-length = 100
 target-version = "py312"
 

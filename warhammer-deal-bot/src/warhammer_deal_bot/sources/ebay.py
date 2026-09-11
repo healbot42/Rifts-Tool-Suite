@@ -2,6 +2,7 @@
 
 import base64
 import os
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 import httpx
@@ -81,6 +82,25 @@ class EbayAdapter(SourceAdapter):
         title = str(item.get("title", ""))
         if not matches_product(title, product, bool(self.settings.get("allow_3d_prints", False))):
             return None
+        availability = str(item.get("estimatedAvailabilityStatus", "")).upper()
+        estimates = item.get("estimatedAvailabilities", [])
+        if availability == "OUT_OF_STOCK" or (
+            isinstance(estimates, list)
+            and any(
+                isinstance(value, dict)
+                and str(value.get("estimatedAvailabilityStatus", "")).upper() == "OUT_OF_STOCK"
+                for value in estimates
+            )
+        ):
+            return None
+        ends_at = None
+        if item.get("itemEndDate"):
+            try:
+                ends_at = datetime.fromisoformat(str(item["itemEndDate"]).replace("Z", "+00:00"))
+            except ValueError:
+                ends_at = None
+            if ends_at is not None and ends_at <= datetime.now(UTC):
+                return None
         try:
             url = validate_https_url(str(item.get("itemWebUrl", "")), {"ebay.com"})
         except ValueError:
@@ -119,6 +139,13 @@ class EbayAdapter(SourceAdapter):
         except (KeyError, InvalidOperation, TypeError):
             return None
         seller = item.get("seller", {})
+        image = item.get("image", {})
+        image_url = None
+        if isinstance(image, dict) and image.get("imageUrl"):
+            try:
+                image_url = validate_https_url(str(image["imageUrl"]), {"ebayimg.com"})
+            except ValueError:
+                image_url = None
         rating = seller.get("feedbackPercentage") if isinstance(seller, dict) else None
         return Listing(
             source=self.name,
@@ -137,4 +164,6 @@ class EbayAdapter(SourceAdapter):
             else None,
             quantity=infer_quantity(title),
             raw=sanitize_raw_metadata(item),
+            image_url=image_url,
+            ends_at=ends_at,
         )

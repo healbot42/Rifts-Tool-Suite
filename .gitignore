@@ -60,7 +60,7 @@ tmp-rue-equipment.txt
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.pytest-tmp/
+.pytest-tmp*/
 .mypy_cache/
 .ruff_cache/
 .venv/

@@ -12,7 +12,7 @@ export default [
       'public/**',
       'tmp/**',
       '**/.pytest_cache/**',
-      '**/.pytest-tmp/**',
+      '**/.pytest-tmp*/**',
       '**/__pycache__/**',
       '**/.venv/**',
     ],

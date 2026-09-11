@@ -21,6 +21,7 @@ def test_example_config_loads():
     assert config.products[1].minimum_models == 5
     assert config.email.max_deals_per_product == 3
     assert config.email.suspicious_discount_percent == 60
+    assert config.products[0].purchased_quantity == 0
     ids = {product.id for product in config.products}
     assert {
         "mkiv-assault",
