@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3,<10", "ruff==0.16.2"]
+dev = ["pytest>=8.3,<10", "ruff==0.16.6"]
 
 [project.scripts]
 warhammer-deal-bot = "warhammer_deal_bot.cli:main"
