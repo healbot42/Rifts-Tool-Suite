@@ -1,0 +1,42 @@
+name: Refresh Warhammer catalog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 9 * * 1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-warhammer-catalog
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: python scripts/refresh-warhammer-product-catalog.py
+      - run: npm ci
+      - run: npm run lint:web
+      - run: npm run test -- --run tests/pages/deal-watchlist
+      - run: npm run build
+      - name: Commit catalog changes
+        run: |
+          if git diff --quiet -- src/data/warhammer-product-catalog.json; then
+            echo "Catalog is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/warhammer-product-catalog.json dist
+          git commit -m "Refresh Warhammer product catalog"
+          git push

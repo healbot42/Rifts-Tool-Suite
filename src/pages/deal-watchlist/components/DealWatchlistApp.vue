@@ -2,12 +2,21 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { WATCHLIST_API, watchlistApi } from '../lib/watchlistApi.js'
 import defaultProducts from '../../../data/deal-watchlist-products.json'
+import catalog from '../../../data/warhammer-product-catalog.json'
+import { catalogProductVisible, watchlistDraft } from '../lib/catalog.js'
 
 const products = ref([])
 const owner = ref('')
 const error = ref('')
 const busy = ref(false)
 const editingId = ref(null)
+const catalogOptions = reactive({
+  query: '',
+  system: 'All',
+  includeResin: false,
+  includeCharacters: false,
+  includeAccessories: false,
+})
 const blank = () => ({
   id: '',
   name: '',
@@ -43,6 +52,14 @@ const sortedProducts = computed(() =>
     (a, b) =>
       Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name),
   ),
+)
+const matchingCatalogProducts = computed(() =>
+  catalog.products.filter((product) =>
+    catalogProductVisible(product, catalogOptions),
+  ),
+)
+const visibleCatalogProducts = computed(() =>
+  matchingCatalogProducts.value.slice(0, 60),
 )
 const listFields = ['aliases', 'queries', 'required_terms', 'excluded_terms']
 const numberFields = [
@@ -85,6 +102,14 @@ function payload() {
 function reset() {
   Object.assign(form, blank())
   editingId.value = null
+}
+
+function useCatalogProduct(product) {
+  Object.assign(form, blank(), watchlistDraft(product))
+  editingId.value = null
+  document
+    .querySelector('.watchlist-editor')
+    ?.scrollIntoView({ behavior: 'smooth' })
 }
 
 async function load() {
@@ -185,6 +210,99 @@ onMounted(load)
     >
       Signed in as {{ owner }}
     </p>
+
+    <section class="watchlist-catalog">
+      <header>
+        <div>
+          <p class="eyebrow">Official product discovery</p>
+          <h2>Browse the miniature catalog</h2>
+        </div>
+        <span>{{ matchingCatalogProducts.length }} matches</span>
+      </header>
+      <div class="catalog-filters">
+        <label class="wide">
+          <span>Search products or factions</span>
+          <input
+            v-model="catalogOptions.query"
+            placeholder="Possessed, Word Bearers…"
+          />
+        </label>
+        <label>
+          <span>Game</span>
+          <select v-model="catalogOptions.system">
+            <option>All</option>
+            <option>Warhammer 40,000</option>
+            <option>Horus Heresy</option>
+          </select>
+        </label>
+        <label class="toggle">
+          <input
+            v-model="catalogOptions.includeCharacters"
+            type="checkbox"
+          />
+          <span>Show characters and single models</span>
+        </label>
+        <label class="toggle">
+          <input
+            v-model="catalogOptions.includeResin"
+            type="checkbox"
+          />
+          <span>Show suspected resin kits</span>
+        </label>
+        <label class="toggle">
+          <input
+            v-model="catalogOptions.includeAccessories"
+            type="checkbox"
+          />
+          <span>Show weapons and upgrade sets</span>
+        </label>
+      </div>
+      <p class="catalog-note">
+        Showing the first {{ visibleCatalogProducts.length }} matches. US MSRP
+        is requested when you add an item because Warhammer blocks automated
+        price collection.
+      </p>
+      <div class="catalog-grid">
+        <article
+          v-for="product in visibleCatalogProducts"
+          :key="product.product_code"
+        >
+          <img
+            v-if="product.image_url"
+            :src="product.image_url"
+            :alt="product.name"
+            loading="lazy"
+          />
+          <div>
+            <p class="eyebrow">{{ product.system }} · {{ product.faction }}</p>
+            <h3>{{ product.name }}</h3>
+            <p
+              v-if="product.suspected_resin"
+              class="catalog-warning"
+            >
+              Suspected resin
+            </p>
+            <p v-if="product.msrp">
+              US MSRP: ${{ Number(product.msrp).toFixed(2) }}
+            </p>
+            <div class="watchlist-actions">
+              <button
+                type="button"
+                @click="useCatalogProduct(product)"
+              >
+                Use product
+              </button>
+              <a
+                :href="product.url"
+                target="_blank"
+                rel="noopener"
+                >Warhammer page</a
+              >
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
 
     <section class="watchlist-editor">
       <h2>{{ editingId ? 'Edit product' : 'Add product' }}</h2>
