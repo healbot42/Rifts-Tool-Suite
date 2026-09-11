@@ -1,0 +1,396 @@
+[
+  {
+    "id": "argel-tal",
+    "name": "Argel Tal",
+    "aliases": ["Argel Tal"],
+    "queries": ["Argel Tal Horus Heresy"],
+    "quantity_wanted": 1,
+    "purchased_quantity": 0,
+    "msrp": 90,
+    "hard_threshold": 70,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "condition_discount_adjustments": {
+      "Primed": 10,
+      "Painted": 15,
+      "Unknown": 10
+    },
+    "enabled": true
+  },
+  {
+    "id": "chaos-space-marines-possessed",
+    "name": "Chaos Space Marines Possessed",
+    "aliases": ["CSM Possessed", "Chaos Possessed"],
+    "queries": ["Chaos Space Marines Possessed 2022"],
+    "quantity_wanted": 2,
+    "expected_models": 5,
+    "minimum_models": 5,
+    "msrp": 62.5,
+    "hard_threshold": 47,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "required_terms": ["Possessed"],
+    "excluded_terms": [
+      "single",
+      "individual",
+      "one model",
+      "bits",
+      "weapon",
+      "torso",
+      "backpack",
+      "conversion",
+      "proxy",
+      "greater possessed",
+      2007
+    ],
+    "enabled": true
+  },
+  {
+    "id": "mhara-gal",
+    "name": "Mhara Gal Tainted Dreadnought",
+    "aliases": ["Mhara Gal", "Mhara-Gal"],
+    "queries": ["Mhara Gal", "Mhara Gal Tainted Dreadnought"],
+    "quantity_wanted": 2,
+    "msrp": 170,
+    "hard_threshold": 125,
+    "percent_off_threshold": 25,
+    "minimum_savings": 20,
+    "excluded_terms": ["conversion", "kit bash", "helbrute"],
+    "enabled": true
+  },
+  {
+    "id": "saturnine-terminators",
+    "name": "Saturnine Terminator Squad",
+    "aliases": ["Saturnine Terminators", "Saturnine Terminator Squad"],
+    "queries": ["Saturnine Terminator Squad Horus Heresy"],
+    "quantity_wanted": 1,
+    "minimum_models": 2,
+    "msrp": 65,
+    "hard_threshold": 48,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "enabled": true
+  },
+  {
+    "id": "sicaran",
+    "name": "Sicaran Battle Tank",
+    "aliases": ["Sicaran", "Sicaran Battle Tank"],
+    "queries": ["Sicaran Battle Tank Horus Heresy"],
+    "quantity_wanted": 2,
+    "msrp": 80,
+    "hard_threshold": 60,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["Omega", "Venator", "Arcus", "Punisher"],
+    "enabled": true
+  },
+  {
+    "id": "predator",
+    "name": "Horus Heresy Predator Battle Tank",
+    "aliases": ["Predator Battle Tank", "Deimos Pattern Predator"],
+    "queries": ["Horus Heresy Predator Battle Tank", "Deimos Predator"],
+    "quantity_wanted": 2,
+    "msrp": 70,
+    "hard_threshold": 52,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["turret weapon", "turret weapons"],
+    "enabled": true
+  },
+  {
+    "id": "mkiv-tactical",
+    "name": "MKIV Tactical Squad",
+    "aliases": ["Mk IV Marines", "MK4 Marines", "Mark IV Tactical Squad"],
+    "queries": [
+      "MKIV Tactical Squad Horus Heresy",
+      "Mark IV Marines Horus Heresy"
+    ],
+    "quantity_wanted": 3,
+    "expected_models": 20,
+    "minimum_models": 10,
+    "msrp": 85,
+    "hard_threshold": 64,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "enabled": true
+  },
+  {
+    "id": "melee-weapons",
+    "name": "Horus Heresy Melee Weapons Upgrade Set",
+    "aliases": ["Melee Weapons Upgrade Set"],
+    "queries": ["Horus Heresy Melee Weapons Upgrade Set"],
+    "quantity_wanted": 2,
+    "msrp": 47,
+    "hard_threshold": 35,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "enabled": true
+  },
+  {
+    "id": "special-weapons",
+    "name": "Horus Heresy Special Weapons Upgrade Set",
+    "aliases": ["Special Weapons Upgrade Set"],
+    "queries": ["Horus Heresy Special Weapons Upgrade Set"],
+    "quantity_wanted": 1,
+    "msrp": 47,
+    "hard_threshold": 35,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "enabled": true
+  },
+  {
+    "id": "heavy-weapons-lascannons",
+    "name": "Horus Heresy Heavy Weapons Upgrade Set \u2014 Lascannons",
+    "aliases": [
+      "Heavy Weapons Upgrade Set Lascannons",
+      "Heavy Weapons Lascannons"
+    ],
+    "queries": ["Horus Heresy Heavy Weapons Upgrade Set Lascannons"],
+    "required_terms": ["lascannon"],
+    "quantity_wanted": 1,
+    "msrp": 47,
+    "hard_threshold": 35,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "enabled": true
+  },
+  {
+    "id": "mkiv-assault",
+    "name": "MKIV Assault Squad",
+    "aliases": [
+      "Mk IV Assault Squad",
+      "MK4 Assault Squad",
+      "Mark IV Assault Squad"
+    ],
+    "queries": [
+      "MKIV Assault Squad Horus Heresy",
+      "Mark IV Assault Squad Horus Heresy"
+    ],
+    "quantity_wanted": 1,
+    "expected_models": 10,
+    "minimum_models": 5,
+    "msrp": 73.5,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "enabled": true
+  },
+  {
+    "id": "contemptor-dreadnought",
+    "name": "Contemptor Dreadnought",
+    "aliases": ["Legiones Astartes Contemptor Dreadnought"],
+    "queries": ["Horus Heresy Contemptor Dreadnought plastic"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 63,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "excluded_terms": [
+      "Incaendius",
+      "Osiron",
+      "Achillus",
+      "Galatus",
+      "body",
+      "weapon",
+      "arm",
+      "frame 2"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "heavy-weapons",
+    "name": "Legiones Astartes Heavy Weapons Upgrade Set",
+    "aliases": ["Horus Heresy Heavy Weapons Upgrade Set"],
+    "queries": ["Legiones Astartes Heavy Weapons Upgrade Set Horus Heresy"],
+    "quantity_wanted": 1,
+    "msrp": 48.5,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "excluded_terms": ["lascannon"],
+    "enabled": true
+  },
+  {
+    "id": "deimos-rhino",
+    "name": "Deimos Pattern Rhino",
+    "aliases": ["Deimos Rhino", "Legiones Astartes Deimos Rhino"],
+    "queries": ["Horus Heresy Deimos Pattern Rhino"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 56,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "excluded_terms": [
+      "doors",
+      "upgrade",
+      "conversion",
+      "hatch",
+      "pintle mount",
+      "pintle mounts",
+      "bulldozer blade",
+      "searchlight",
+      "heavy bolter",
+      "multi melta"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "land-raider-proteus",
+    "name": "Land Raider Proteus",
+    "aliases": [
+      "Land Raider Proteus Carrier",
+      "Land Raider Proteus Explorator"
+    ],
+    "queries": ["Horus Heresy Land Raider Proteus"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 85,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["doors", "upgrade", "conversion"],
+    "enabled": true
+  },
+  {
+    "id": "zardu-layak",
+    "name": "Zardu Layak and Blade-slaves",
+    "aliases": ["Zardu Layak and Blade Slaves", "Zardu Layak"],
+    "queries": ["Zardu Layak and Blade-slaves Horus Heresy"],
+    "quantity_wanted": 1,
+    "expected_models": 3,
+    "minimum_models": 3,
+    "msrp": 109,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["single", "only"],
+    "enabled": true
+  },
+  {
+    "id": "spartan-assault-tank",
+    "name": "Spartan Assault Tank",
+    "aliases": ["Land Raider Spartan", "Spartan Tank"],
+    "queries": ["Horus Heresy Spartan Assault Tank"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 116,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["doors", "upgrade", "conversion"],
+    "enabled": true
+  },
+  {
+    "id": "deredeo-dreadnought",
+    "name": "Deredeo Dreadnought",
+    "aliases": ["Legiones Astartes Deredeo Dreadnought"],
+    "queries": ["Horus Heresy Deredeo Dreadnought plastic"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 89,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["weapon", "arm", "torso", "upgrade"],
+    "enabled": true
+  },
+  {
+    "id": "cataphractii-terminators",
+    "name": "Cataphractii Terminators",
+    "aliases": ["Cataphractii Terminator Squad"],
+    "queries": ["Horus Heresy Cataphractii Terminators"],
+    "quantity_wanted": 1,
+    "expected_models": 10,
+    "minimum_models": 5,
+    "msrp": 85,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": ["single", "individual", "shoulder pads", "upgrade"],
+    "enabled": true
+  },
+  {
+    "id": "deimos-whirlwind",
+    "name": "Deimos Pattern Whirlwind",
+    "aliases": ["Whirlwind Missile Tank", "Deimos Whirlwind"],
+    "queries": ["Horus Heresy Deimos Pattern Whirlwind Missile Tank"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 69,
+    "percent_off_threshold": 25,
+    "minimum_savings": 10,
+    "excluded_terms": ["Scorpius", "turret", "launcher", "upgrade"],
+    "enabled": true
+  },
+  {
+    "id": "space-marine-land-raider",
+    "name": "Space Marine Land Raider",
+    "aliases": ["Warhammer 40000 Land Raider", "Land Raider"],
+    "queries": ["Warhammer 40k Space Marine Land Raider"],
+    "quantity_wanted": 1,
+    "expected_models": 1,
+    "msrp": 95,
+    "percent_off_threshold": 25,
+    "minimum_savings": 15,
+    "excluded_terms": [
+      "Proteus",
+      "Spartan",
+      "Crusader",
+      "Redeemer",
+      "Achilles",
+      "Terminus",
+      "doors",
+      "upgrade",
+      "conversion"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "maximus-battle-group",
+    "name": "Maximus Battle Group",
+    "aliases": ["Maximus Battlegroup"],
+    "queries": [
+      "Horus Heresy Maximus Battle Group",
+      "Horus Heresy Maximus Battlegroup"
+    ],
+    "quantity_wanted": 2,
+    "msrp": 220,
+    "item_percent_off_threshold": 25,
+    "delivered_percent_off_floor": 15,
+    "minimum_savings": 15,
+    "excluded_terms": [
+      "split",
+      "incomplete",
+      "partial",
+      "missing",
+      "from",
+      "only"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "legiones-astartes-battle-group-2023",
+    "name": "Legiones Astartes Battle Group (2023)",
+    "aliases": [
+      "Legiones Astartes Battle Group",
+      "Legiones Astartes Battlegroup"
+    ],
+    "queries": [
+      "Legiones Astartes Battle Group 2023",
+      "Legiones Astartes Battlegroup 2023"
+    ],
+    "quantity_wanted": 2,
+    "msrp": 210,
+    "item_percent_off_threshold": 25,
+    "delivered_percent_off_floor": 15,
+    "minimum_savings": 15,
+    "required_terms": ["2023"],
+    "excluded_terms": [
+      "Maximus",
+      "Saturnine",
+      "Siege Assault",
+      "Solar Auxilia",
+      "Custodes",
+      "split",
+      "incomplete",
+      "partial",
+      "missing",
+      "from",
+      "only"
+    ],
+    "enabled": true
+  }
+]

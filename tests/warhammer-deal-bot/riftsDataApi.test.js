@@ -19,4 +19,16 @@ describe('Rifts data API', () => {
     )
     expect(response.status).toBe(401)
   })
+
+  it('requires a Cloudflare Access identity for browser watchlists', async () => {
+    const response = await handleRequest(
+      new Request('https://rifts-data-api.example/v1/watchlist'),
+      {},
+      {},
+    )
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({
+      error: 'Cloudflare Access sign-in required',
+    })
+  })
 })

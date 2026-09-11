@@ -28,6 +28,7 @@ describe('project structure', () => {
     ['tw-device-browser', 'TwDeviceBrowserPage.vue'],
     ['initiative-tracker', 'InitiativeTrackerPage.vue'],
     ['character-sheet', 'CharacterSheetPage.vue'],
+    ['deal-watchlist', 'DealWatchlistPage.vue'],
   ])(
     'keeps the %s page behind a stable wrapper and components directory',
     (page, wrapper) => {

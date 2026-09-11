@@ -58,3 +58,18 @@ def test_remote_history_stays_disabled_without_both_settings(monkeypatch):
     )
     with httpx.Client() as client:
         assert not RemoteHistory(client).enabled
+
+
+def test_remote_watchlist_uses_machine_authenticated_endpoint(monkeypatch):
+    monkeypatch.setenv("DATA_API_TOKEN", "secret")
+    monkeypatch.setenv(
+        "DATA_API_URL", "https://rifts-data-api.zhawkins42.workers.dev"
+    )
+
+    def handler(request):
+        assert request.headers["authorization"] == "Bearer secret"
+        assert request.url.path == "/v1/bot/watchlist"
+        return httpx.Response(200, json={"products": [{"id": "possessed"}]})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert RemoteHistory(client).watchlist() == [{"id": "possessed"}]

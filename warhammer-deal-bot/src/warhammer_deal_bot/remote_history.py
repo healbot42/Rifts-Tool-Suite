@@ -50,6 +50,17 @@ class RemoteHistory:
             for row in response.json().get("purchases", [])
         }
 
+    def watchlist(self) -> list[dict[str, Any]]:
+        """Return the web-managed catalog; an empty list keeps YAML as fallback."""
+        if not self.enabled:
+            return []
+        response = self.client.get(f"{self.url}/v1/bot/watchlist", headers=self.headers)
+        response.raise_for_status()
+        products = response.json().get("products", [])
+        if not isinstance(products, list):
+            raise ValueError("Remote watchlist products must be a list")
+        return products
+
     def store(self, listings: list[Listing]) -> None:
         if not self.enabled:
             return

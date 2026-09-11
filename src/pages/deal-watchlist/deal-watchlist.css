@@ -1,0 +1,143 @@
+.watchlist-page {
+  width: min(1180px, calc(100% - 2rem));
+  margin: 2rem auto;
+  color: #dbeafe;
+}
+.watchlist-heading,
+.watchlist-list > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.watchlist-heading h1 {
+  margin: 0;
+  color: #ff9f2f;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+.watchlist-heading p {
+  margin: 0.35rem 0;
+}
+.eyebrow,
+.watchlist-owner {
+  color: #8fc7ff;
+}
+.watchlist-editor,
+.watchlist-list,
+.watchlist-error {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid #31537d;
+  border-radius: 16px;
+  background: #0f1d35;
+}
+.watchlist-error {
+  border-color: #d88a39;
+}
+.watchlist-error a {
+  color: #8fc7ff;
+}
+.watchlist-editor form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+.watchlist-editor label {
+  display: grid;
+  gap: 0.35rem;
+}
+.watchlist-editor .wide,
+.watchlist-editor .toggle,
+.watchlist-actions {
+  grid-column: 1 / -1;
+}
+.watchlist-editor input {
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid #416991;
+  border-radius: 8px;
+  color: #eef6ff;
+  background: #081426;
+}
+.watchlist-editor .toggle {
+  display: flex;
+  align-items: center;
+}
+.watchlist-editor .toggle input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.watchlist-page button {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #ff9f2f;
+  border-radius: 8px;
+  color: #071426;
+  background: #ff9f2f;
+  font-weight: 700;
+  cursor: pointer;
+}
+.watchlist-page button.secondary {
+  color: #dbeafe;
+  background: transparent;
+  border-color: #6686aa;
+}
+.watchlist-page button.danger {
+  color: #ffd5d5;
+  background: transparent;
+  border-color: #b45050;
+}
+.watchlist-page button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.watchlist-list article {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 2fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid #294564;
+}
+.watchlist-list article.paused {
+  opacity: 0.62;
+}
+.watchlist-list h3,
+.watchlist-list p {
+  margin: 0;
+}
+.watchlist-list dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+}
+.watchlist-list dl div {
+  display: grid;
+}
+.watchlist-list dt {
+  color: #8fc7ff;
+  font-size: 0.8rem;
+}
+.watchlist-list dd {
+  margin: 0;
+  font-weight: 700;
+}
+.watchlist-actions {
+  display: flex;
+  gap: 0.55rem;
+}
+.status {
+  color: #8fc7ff;
+  font-weight: 700;
+}
+@media (max-width: 760px) {
+  .watchlist-editor form {
+    grid-template-columns: 1fr;
+  }
+  .watchlist-list article {
+    grid-template-columns: 1fr;
+  }
+  .watchlist-list dl {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}

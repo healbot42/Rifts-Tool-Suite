@@ -34,6 +34,61 @@ def _money(value: Any) -> Decimal | None:
     return None if value is None else Decimal(str(value))
 
 
+def product_from_mapping(raw: dict[str, Any]) -> Product:
+    product_id = str(raw.get("id", "")).strip()
+    name = str(raw.get("name", "")).strip()
+    if not product_id or not name or _money(raw.get("msrp")) is None:
+        raise ValueError("Each product requires id, name, and msrp")
+    conditions = raw.get("enabled_conditions", [condition.value for condition in Condition])
+    item_discount = _money(raw.get("item_percent_off_threshold"))
+    delivered_floor = _money(raw.get("delivered_percent_off_floor"))
+    if (item_discount is None) != (delivered_floor is None):
+        raise ValueError("Item discount and delivered discount floor must be configured together")
+    if item_discount is not None and (
+        not item_discount.is_finite()
+        or not delivered_floor.is_finite()
+        or not Decimal("0") <= delivered_floor <= item_discount <= Decimal("100")
+    ):
+        raise ValueError("Discounts must satisfy 0 <= delivered floor <= item discount <= 100")
+    expected_models = raw.get("expected_models")
+    minimum_models = raw.get("minimum_models")
+    purchased_quantity = int(raw.get("purchased_quantity", 0))
+    if purchased_quantity < 0:
+        raise ValueError("Purchased quantity cannot be negative")
+    expected_models = int(expected_models) if expected_models is not None else None
+    minimum_models = int(minimum_models) if minimum_models is not None else None
+    if minimum_models is not None and (
+        minimum_models < 1 or (expected_models is not None and minimum_models > expected_models)
+    ):
+        raise ValueError("Minimum models must be positive and no more than expected models")
+    return Product(
+        id=product_id,
+        name=name,
+        aliases=[str(value) for value in raw.get("aliases", [])],
+        queries=[str(value) for value in raw.get("queries", [name])],
+        quantity_wanted=int(raw.get("quantity_wanted", 1)),
+        msrp=_money(raw["msrp"]),
+        enabled=bool(raw.get("enabled", True)),
+        purchased_quantity=purchased_quantity,
+        hard_threshold=_money(raw.get("hard_threshold")),
+        percent_off_threshold=_money(raw.get("percent_off_threshold")),
+        median_percent_off=_money(raw.get("median_percent_off")),
+        minimum_savings=_money(raw.get("minimum_savings")) or Decimal("0"),
+        minimum_seller_rating=_money(raw.get("minimum_seller_rating")),
+        enabled_conditions={Condition(value) for value in conditions},
+        condition_discount_adjustments={
+            Condition(key): Decimal(str(value))
+            for key, value in raw.get("condition_discount_adjustments", {}).items()
+        },
+        expected_models=expected_models,
+        minimum_models=minimum_models,
+        required_terms=[str(value) for value in raw.get("required_terms", [])],
+        excluded_terms=[str(value) for value in raw.get("excluded_terms", [])],
+        item_percent_off_threshold=item_discount,
+        delivered_percent_off_floor=delivered_floor,
+    )
+
+
 def load_config(path: str | Path) -> AppConfig:
     config_path = Path(path).expanduser().resolve()
     data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -79,6 +134,7 @@ def load_config(path: str | Path) -> AppConfig:
                 queries=[str(value) for value in raw.get("queries", [name])],
                 quantity_wanted=int(raw.get("quantity_wanted", 1)),
                 msrp=_money(raw["msrp"]),  # type: ignore[arg-type]
+                enabled=bool(raw.get("enabled", True)),
                 purchased_quantity=purchased_quantity,
                 hard_threshold=_money(raw.get("hard_threshold")),
                 percent_off_threshold=_money(raw.get("percent_off_threshold")),

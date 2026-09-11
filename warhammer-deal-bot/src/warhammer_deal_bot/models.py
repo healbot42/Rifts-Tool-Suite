@@ -26,6 +26,7 @@ class Product:
     queries: list[str]
     quantity_wanted: int
     msrp: Decimal
+    enabled: bool = True
     purchased_quantity: int = 0
     hard_threshold: Decimal | None = None
     percent_off_threshold: Decimal | None = None

@@ -16,6 +16,9 @@ const InitiativeTracker = defineAsyncComponent(
 const CharacterSheet = defineAsyncComponent(
   () => import('./pages/character-sheet/index.js'),
 )
+const DealWatchlist = defineAsyncComponent(
+  () => import('./pages/deal-watchlist/index.js'),
+)
 
 const activePage = ref(pageFromHash(window.location.hash))
 const syncPageFromHash = () => {
@@ -128,13 +131,30 @@ onBeforeUnmount(() =>
         </svg>
         <span>Character Sheet</span>
       </a>
+      <a
+        class="app-page-link"
+        :class="{ active: activePage === 'deal-watchlist' }"
+        href="#deal-watchlist"
+        :aria-current="activePage === 'deal-watchlist' ? 'page' : undefined"
+      >
+        <svg
+          class="app-page-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d="M4 5h16v14H4zM8 9h8M8 13h5M8 17h3" />
+          <path d="m15 16 2 2 4-5" />
+        </svg>
+        <span>Deal Watchlist</span>
+      </a>
     </div>
   </nav>
 
   <TwCalculator v-if="activePage === 'tw-calculator'" />
   <TwDeviceBrowser v-else-if="activePage === 'tw-device-browser'" />
   <InitiativeTracker v-else-if="activePage === 'initiative-tracker'" />
-  <CharacterSheet v-else />
+  <CharacterSheet v-else-if="activePage === 'character-sheet'" />
+  <DealWatchlist v-else />
 
   <footer class="app-footer">{{ APP_RELEASE_LABEL }}</footer>
 </template>

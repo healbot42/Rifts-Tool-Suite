@@ -3,6 +3,7 @@ export const PAGE_IDS = Object.freeze([
   'tw-device-browser',
   'initiative-tracker',
   'character-sheet',
+  'deal-watchlist',
 ])
 
 const pageIds = new Set(PAGE_IDS)

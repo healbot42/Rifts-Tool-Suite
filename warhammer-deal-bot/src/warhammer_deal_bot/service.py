@@ -8,7 +8,7 @@ from dataclasses import asdict
 import httpx
 
 from .alerts import format_digest, send_email
-from .config import AppConfig
+from .config import AppConfig, product_from_mapping
 from .database import Database
 from .models import Deal
 from .pricing import evaluate_deal
@@ -31,25 +31,33 @@ def run(
     config: AppConfig, source_filter: str | None = None, product_filter: str | None = None
 ) -> list[Deal]:
     database = Database(config.database)
-    configured_products = [
-        product
-        for product in config.products
-        if product_filter is None
-        or product_filter.casefold() in {product.id.casefold(), product.name.casefold()}
-    ]
-    if not configured_products:
-        raise ValueError(f"No configured product matched {product_filter!r}")
+    catalog = config.products
     with httpx.Client(timeout=httpx.Timeout(20), follow_redirects=False) as client:
         remote = RemoteHistory(client)
         if remote.enabled:
             try:
+                managed = remote.watchlist()
+                if managed:
+                    catalog = [product_from_mapping(product) for product in managed]
                 purchases = remote.purchases()
-                for product in configured_products:
+                for product in catalog:
                     product.purchased_quantity = max(
                         product.purchased_quantity, purchases.get(product.id, 0)
                     )
             except (httpx.HTTPError, KeyError, TypeError, ValueError):
-                LOGGER.exception("D1 purchase hydration failed")
+                LOGGER.exception("D1 watchlist hydration failed; using local configuration")
+                catalog = config.products
+    configured_products = [
+        product
+        for product in catalog
+        if product.enabled
+        and (
+            product_filter is None
+            or product_filter.casefold() in {product.id.casefold(), product.name.casefold()}
+        )
+    ]
+    if not configured_products:
+        raise ValueError(f"No configured product matched {product_filter!r}")
     products = [
         product
         for product in configured_products

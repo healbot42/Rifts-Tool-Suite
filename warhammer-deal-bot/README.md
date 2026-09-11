@@ -224,6 +224,21 @@ D1 database can support later Rifts Tool Suite backend features through new
 Worker routes. Browser clients must use authenticated Worker endpoints and must
 never receive `DATA_API_TOKEN`.
 
+The suite's **Deal Watchlist** page manages products through `/v1/watchlist`.
+Each record includes the Cloudflare Access email that owns it, so future users'
+lists remain separate. The first signed-in user can import the current YAML
+catalog, then add, edit, pause, remove, and update quantities. Once the web list
+contains products, the scheduled bot reads it from `/v1/bot/watchlist`; until
+then the YAML catalog remains the fallback. With one owner, selection is
+automatic. Before adding a second owner, set the Worker's `DEAL_BOT_OWNER`
+variable to the email whose list the bot should scan.
+
+Protect only `/v1/watchlist*` with a Cloudflare Access self-hosted application
+and an allow policy for the intended email addresses. The other `/v1` routes
+stay outside that Access application because they require the bot's bearer
+token. Browser credentials are enabled for the production GitHub Pages origin
+and local Vite development origins.
+
 ## Configuration
 
 Copy `config.example.yaml` to ignored `config.yaml`. Products, aliases, queries,
