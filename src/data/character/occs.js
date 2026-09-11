@@ -13,6 +13,13 @@ export function defineOcc(occ) {
     attributeBonusSource: null,
     mdc: null,
     combatBonuses: {},
+    combatProgression: {},
+    saveBonuses: {},
+    saveProgression: {},
+    situationalBonuses: [],
+    creationNotes: [],
+    resourceNotes: [],
+    equipmentNotes: [],
     automaticSkills: [],
     choices: [],
     specializations: [],
@@ -84,6 +91,21 @@ export const combatCyborg = defineOcc({
   description:
     'A full-conversion cyborg built as a Mega-Damage combatant with Robot Strength, heavy armor, integrated systems, and military training.',
   defaults: { ps: 24, pp: 18, spd: 132, strengthType: 'robot', isp: 0 },
+  saveBonuses: { possession: 5, magic: 3 },
+  creationNotes: [
+    'Starts at Robot P.S. 24, P.P. 18, and Speed 132. Purchased upgrades may raise these to the class limits.',
+  ],
+  resourceNotes: [
+    'Full conversion eliminates psionic powers and I.S.P.; only 10% of any former P.P.E. remains.',
+  ],
+  equipmentNotes: [
+    'MI-B2 Medium Infantry Armor provides 230 M.D.C. and imposes -15% on applicable Physical skills.',
+  ],
+  situationalBonuses: [
+    'Simulated touch is 35-55%.',
+    'Prowl suffers -20%.',
+    'Art, Forgery, Locksmith, Palming, Pick Locks, Play Musical Instrument, and similar fine-hand skills suffer -40%.',
+  ],
   languages: { nativeBase: 88, nativeBonus: 8, otherBonus: 20 },
   mdc: { mainBody: 180, armor: 230, total: 410 },
   automaticSkills: [
@@ -175,12 +197,8 @@ export const combatCyborg = defineOcc({
   },
   abilities: [
     'Full-conversion cyborg: an M.D.C. being with Robot P.S. and no normal physical S.D.C. or Hit Point damage from ordinary attacks.',
-    'Starts at Robot P.S. 24, P.P. 18, and Speed 132. Purchased upgrades may raise these to the class limits.',
-    '+5 to save vs possession and +3 to save vs magic.',
     'Impervious to psionic Bio-Manipulation, Telemechanics, See Aura, and attacks that inflict damage directly to Hit Points.',
-    'Full conversion eliminates psionic powers and I.S.P.; only 10% of any former P.P.E. remains, and magic or Techno-Wizard devices cannot be used.',
-    'Simulated touch is 35-55%. Prowl suffers -20%; Art, Forgery, Locksmith, Palming, Pick Locks, Play Musical Instrument, and similar fine-hand skills suffer -40%.',
-    'MI-B2 Medium Infantry Armor provides 230 M.D.C. and imposes -15% on applicable Physical skills.',
+    'Full conversion prevents the use of magic and Techno-Wizard devices.',
   ],
 })
 
@@ -260,6 +278,21 @@ export const crazy = defineOcc({
     perception: 3,
     coma: 15,
   },
+  combatProgression: {
+    automaticDodge: [1, 3, 6, 9, 12, 15],
+    roll: [2, 5, 10, 15],
+  },
+  saveBonuses: {
+    psionics: 2,
+    possession: 2,
+    mindControl: 6,
+    toxins: 4,
+  },
+  situationalBonuses: [
+    'Enhanced Senses: exceptional sight and hearing.',
+    'Scent recognition and tracking from enhanced smell.',
+    '+10% to skills requiring a delicate touch.',
+  ],
   automaticSkills: [
     ['climbing', 20],
     ['dance', 15],
@@ -334,19 +367,12 @@ export const crazy = defineOcc({
     return 6 + [2, 4, 8, 12].filter((value) => level >= value).length
   },
   abilities: [
-    'Super Endurance: add 3D6x10 S.D.C., 5D6 Hit Points, and 1D6 P.E.; carry and lift twice normal, endure ten times longer, remain fully alert for 72 hours, and need only four hours of sleep.',
-    'Increased Strength: add 2D4 P.S.; minimum P.S. 19 and Augmented strength. The builder applies the minimum and strength category; record the rolled increase manually.',
-    'Increased Speed: add 4D6 Spd; running leap 20 feet across and 15 feet high, or half from a dead stop. Record the rolled increase manually.',
-    'Heightened Reflexes: add 1D6 P.P. (minimum 17), +2 initiative, +1 attack per melee, +4 roll with impact, and +20% to maintain balance. The builder applies the minimum and fixed bonuses.',
-    'Enhanced Senses: +3 Perception; exceptional sight and hearing, automatic dodge at +1 on levels 1, 3, 6, 9, 12, and 15; additional roll-with-impact bonuses at levels 2, 5, 10, and 15.',
-    'Enhanced smell, taste, and touch include scent recognition/tracking and +10% to skills requiring a delicate touch; apply these situationally.',
-    'Saving throws: +2 vs psionics and possession, +6 vs mind control, and +4 vs toxic gases, poisons, drugs, and disease.',
-    'Enhanced Healing: heals twice normal, +15% vs coma/death, and ignores pain penalties until reduced to 10 Hit Points or fewer.',
+    'Super Endurance: carry and lift twice normal, endure ten times longer, remain fully alert for 72 hours, and need only four hours of sleep.',
+    'Increased Speed: running leap 20 feet across and 15 feet high, or half from a dead stop.',
+    'Heightened Reflexes: +20% to maintain balance.',
+    'Enhanced Healing: heals twice normal and ignores pain penalties until reduced to 10 Hit Points or fewer.',
     'Crazies Bio-Regeneration: a helpless 2D4-minute trance restores 2D6 Hit Points and 3D6 S.D.C.; six hours restores all S.D.C. plus 4D6 Hit Points.',
-    'Minor Psionics: choose three Sensitive or Physical powers, excluding Astral Projection, Ectoplasm, Object Read, and Telekinesis. I.S.P. is 6D6 + M.E., plus 1D6 per level starting at level two; save vs psionics on 12 or higher.',
     'Insanity progression: Phobia at level 2; Affective Disorder at 3; Crazy Insanity at 4; Obsession at 6; Phobia at 8; Neurosis at 10; Psychosis at 12; Random Insanity at 14.',
-    'P.P.E. base is 6D6. M.O.M. is designed for humans and Ogres; it does not work on supernatural beings or creatures of magic.',
-    'Avoids bionics other than M.O.M., but may consider limited implants.',
   ],
 })
 
@@ -355,7 +381,16 @@ export const cyberKnight = defineOcc({
   name: 'Cyber-Knight O.C.C.',
   description:
     'A chivalric psychic warrior trained to defend life and justice with discipline, a Psi-Sword, cyber-armor, and special awareness of technology.',
-  languages: { nativeBase: 96, nativeBonus: 0, otherBonus: 30 },
+  languages: {
+    nativeBase: 96,
+    nativeBonus: 0,
+    otherBonus: 30,
+    otherCount: 2,
+  },
+  creationNotes: [
+    'Dragones/Elf is also known at 96%.',
+    'O.C.C. Related selections must include at least two Physical skills and three W.P.s.',
+  ],
   attributeRequirements: [
     { attribute: 'me', minimum: 11 },
     { attribute: 'pe', minimum: 11 },
@@ -405,10 +440,7 @@ export const cyberKnight = defineOcc({
     return 6 + 2 * [5, 10, 15].filter((v) => level >= v).length
   },
   abilities: [
-    'Attribute requirements: M.E. 11 and P.E. 11; I.Q. and P.S. 10 are suggested.',
-    'Choose two additional spoken languages at +30%; Dragones/Elf is also known at 96%.',
     'Cyber-armor, a Psi-Sword, psionics, combat training, and Zen Combat abilities improve with level; consult the class pages for the complete progression.',
-    'O.C.C. Related selections must include at least two Physical skills and three W.P.s.',
   ],
   source: { book: 'Rifts Ultimate Edition', pages: '61-66' },
 })
@@ -418,7 +450,18 @@ export const glitterBoy = defineOcc({
   name: 'Glitter Boy O.C.C.',
   description:
     'The hereditary or newly trained pilot of the legendary laser-resistant Glitter Boy power armor and its Boom Gun.',
-  languages: { nativeBase: 95, nativeBonus: 0, otherBonus: 20 },
+  languages: {
+    nativeBase: 95,
+    nativeBonus: 0,
+    otherBonus: 20,
+    otherCount: 2,
+  },
+  creationNotes: [
+    'A pilot descended from generations of Glitter Boy pilots receives the listed hereditary combat, Horror Factor, S.D.C., and armor-attack bonuses.',
+  ],
+  equipmentNotes: [
+    'The USA-G10 Glitter Boy suit has 770 main-body M.D.C., and lasers inflict half damage to it.',
+  ],
   attributeRequirements: [{ attribute: 'pp', minimum: 10 }],
   automaticSkills: [
     ['basic-electronics', 10],
@@ -454,11 +497,7 @@ export const glitterBoy = defineOcc({
   secondaryAtLevel(level) {
     return 6 + 2 * [4, 8, 12].filter((v) => level >= v).length
   },
-  abilities: [
-    'Minimum P.P. 10. A pilot descended from generations of Glitter Boy pilots receives the listed hereditary combat, Horror Factor, S.D.C., and armor-attack bonuses.',
-    'The USA-G10 Glitter Boy suit has 770 main-body M.D.C., and lasers inflict half damage to it.',
-    'Choose two additional spoken languages at +20%.',
-  ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '67-73' },
 })
 
@@ -497,6 +536,15 @@ export const headhunter = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '76' },
   combatBonuses: { initiative: 1, roll: 3, perception: 2, coma: 10 },
+  combatProgression: { initiative: [4, 9, 13] },
+  saveBonuses: { possession: 2, magic: 1 },
+  saveProgression: { horrorFactor: [2, 4, 6, 9, 12, 15] },
+  creationNotes: [
+    'Choose either three other languages at +20%, or one language at +20% and two Lore skills at +10%.',
+  ],
+  resourceNotes: [
+    "The partial-conversion package halves I.S.P. and leaves 10% of the character's P.P.E.",
+  ],
   automaticSkills: [
     ['literacy-other', 10],
     ['computer-operation', 10],
@@ -548,12 +596,7 @@ export const headhunter = defineOcc({
   secondaryAtLevel(level) {
     return 6 + 2 * [3, 6, 9, 12].filter((v) => level >= v).length
   },
-  abilities: [
-    'Minimum P.E. 12 and P.P. 12. Add 3D6 S.D.C. and 1D4 to P.S. and P.E.; record rolled bonuses manually.',
-    'Choose either three other languages at +20%, or one language at +20% and two Lore skills at +10%.',
-    'Initiative improves again at levels 4, 9, and 13; Horror Factor saves improve at levels 2, 4, 6, 9, 12, and 15.',
-    'The partial-conversion package halves I.S.P., leaves 10% P.P.E., and grants +2 vs possession and +1 vs magic.',
-  ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '74-77' },
 })
 
@@ -562,7 +605,15 @@ export const juicer = defineOcc({
   name: 'Juicer O.C.C.',
   description:
     'A chemically augmented super-warrior with extraordinary speed, reflexes, endurance, healing, and a drastically shortened lifespan.',
-  languages: { nativeBase: 92, nativeBonus: 0, otherBonus: 10 },
+  languages: {
+    nativeBase: 92,
+    nativeBonus: 0,
+    otherBonus: 10,
+    otherCount: 2,
+  },
+  situationalBonuses: [
+    'Juicer augmentation supplies the class combat bonuses and automatic dodge described on pages 78-79.',
+  ],
   attributeBonuses: [
     {
       id: 'juicer-sdc',
@@ -656,8 +707,7 @@ export const juicer = defineOcc({
     return 2 * [1, 3, 6, 8, 10, 12].filter((v) => level >= v).length
   },
   abilities: [
-    'Choose two additional spoken languages at +10%.',
-    'Juicer augmentation supplies the class physical/combat bonuses, automatic dodge, enhanced healing and endurance described on pages 78-79; rolled bonuses must be recorded manually.',
+    'Juicer augmentation supplies the enhanced healing and endurance described on pages 78-79.',
     'A Juicer dies after five years plus 4D6 months unless detoxified. Detoxification and its permanent penalties use the table on pages 79-80.',
   ],
   source: { book: 'Rifts Ultimate Edition', pages: '78-80' },
@@ -940,10 +990,11 @@ export const mercSoldier = defineOcc({
   secondaryAtLevel(level) {
     return 2 * [1, 4, 8, 12].filter((v) => level >= v).length
   },
-  abilities: [
+  creationNotes: [
     'Select one MOS; its skills and required choices are applied automatically.',
     'Hand to Hand: Basic may be upgraded to Expert for one Related selection, or Martial Arts/Assassin for two.',
   ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '81-83' },
 })
 
@@ -1099,10 +1150,10 @@ export const robotPilot = defineOcc({
   secondaryAtLevel(level) {
     return 2 * [1, 4, 8, 12].filter((v) => level >= v).length
   },
-  abilities: [
-    'Minimum P.S. 10, P.P. 12, and P.E. 12.',
+  creationNotes: [
     'Select either the Power Armor Pilot MOS or Robot Pilot MOS; its skills and machine selections are applied automatically.',
   ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '83-85' },
 })
 
@@ -1132,6 +1183,23 @@ export const bodyFixer = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '87' },
   combatBonuses: { dodge: 1, disarm: 1, perception: 2 },
+  saveBonuses: {
+    poison: 2,
+    drugs: 2,
+    disease: 3,
+    insanity: 3,
+    horrorFactor: 2,
+  },
+  creationNotes: [
+    'A high P.P. and M.A. are suggested, but the source gives no numeric recommendation.',
+    'The eleven first-level O.C.C. Related selections must include three Medical skills; the remaining eight may include additional Medical skills.',
+  ],
+  situationalBonuses: [
+    'Disease Diagnostic Specialist adds +20% to Medical Doctor and +10% to Brewing and Holistic Medicine for diagnosis and cures.',
+    'Perception is +4 instead of +2 for medical conditions, procedures, drugs, chemicals, and poison.',
+    'Sensory Equipment receives +20% for medical use and +5% otherwise.',
+    'W.P. Knife receives +1 to strike.',
+  ],
   automaticSkills: [
     ['literacy-native', 30],
     ['mathematics-basic', 15],
@@ -1171,12 +1239,8 @@ export const bodyFixer = defineOcc({
     return 6 + [3, 6, 9, 12, 15].filter((v) => level >= v).length
   },
   abilities: [
-    'A high P.P. and M.A. are suggested, but the source gives no numeric recommendation.',
-    'The eleven first-level O.C.C. Related selections must include three Medical skills; the remaining eight may include additional Medical skills.',
     'Familiarity with known D-Bees removes the usual medical penalty; extremely alien physiology is only -20%. Bionic and alien augmentation work retains the listed penalties.',
-    'Disease Diagnostic Specialist adds +20% to Medical Doctor and +10% to Brewing and Holistic Medicine for diagnosis and cures, and can halve symptoms and duration.',
-    '+2 vs poison and drugs, +3 vs disease and insanity, +2 vs Horror Factor; Perception is +4 instead of +2 for medical conditions, procedures, drugs, chemicals, and poison.',
-    'Sensory Equipment receives +20% for medical use and +5% otherwise; W.P. Knife has a special +1 to strike.',
+    'Disease Diagnostic Specialist can halve symptoms and duration after a successful diagnosis.',
   ],
   source: { book: 'Rifts Ultimate Edition', pages: '86-88' },
 })
@@ -1207,6 +1271,17 @@ export const cityRat = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '88' },
   combatBonuses: { perception: 3 },
+  creationNotes: [
+    'No universal attribute minimum applies. Hacker archetypes require I.Q. 10; thieves P.P. 10; assassins I.Q. 10 and P.P. 14; hero or thug muscle archetypes P.S. 14.',
+    'At least three first-level O.C.C. Related selections must come from Physical or Rogue skills.',
+    'Hand to Hand: Basic is automatic; Expert costs one Related selection, Martial Arts or evil-alignment Assassin costs two.',
+  ],
+  resourceNotes: [
+    'P.P.E. base is 1D10+4 and is halved at age 22; record it during character creation.',
+  ],
+  equipmentNotes: [
+    'Cybernetic implants are optional: choose up to 1D4+2 common Commercial or Black Market implants.',
+  ],
   automaticSkills: [
     ['literacy-native', 15],
     ['barter', 15],
@@ -1249,12 +1324,7 @@ export const cityRat = defineOcc({
   secondaryAtLevel(level) {
     return 8 + [3, 6, 10, 15].filter((v) => level >= v).length
   },
-  abilities: [
-    'No universal attribute minimum applies. Hacker archetypes require I.Q. 10; thieves P.P. 10; assassins I.Q. 10 and P.P. 14; hero or thug muscle archetypes P.S. 14.',
-    'At least three first-level O.C.C. Related selections must come from Physical or Rogue skills.',
-    'Hand to Hand: Basic is automatic; Expert costs one Related selection, Martial Arts or evil-alignment Assassin costs two.',
-    'P.P.E. base is 1D10+4 and is halved at age 22; record it manually. Cybernetic implants are optional, up to 1D4+2 common Commercial or Black Market implants.',
-  ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '88-89' },
 })
 
@@ -1284,6 +1354,22 @@ export const cyberDoc = defineOcc({
       label: 'Cyber-Doc O.C.C. bonus',
     },
   ],
+  saveBonuses: {
+    horrorFactor: 4,
+    pain: 2,
+    poison: 1,
+    drugs: 1,
+    disease: 1,
+  },
+  creationNotes: [
+    'A high M.E. is helpful, but the source gives no numeric recommendation.',
+    'At least two first-level O.C.C. Related selections must come from Technical skills.',
+  ],
+  situationalBonuses: [
+    'Find Bionics and Cybernetics Contraband adds +20% and grants source-listed professional discounts.',
+    'Recognize Quality of Bionics & Cybernetics: 60% +3% per level.',
+    'W.P. Knife receives +1 to strike.',
+  ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '90' },
   automaticSkills: [
     ['literacy-native', 40],
@@ -1308,13 +1394,8 @@ export const cyberDoc = defineOcc({
     return 4 + [3, 6, 9, 12, 15].filter((v) => level >= v).length
   },
   abilities: [
-    'A high M.E. is helpful, but the source gives no numeric recommendation.',
-    'At least two first-level O.C.C. Related selections must come from Technical skills.',
     'Can install and remove cybernetics and bionics with the source-listed cumulative penalties; a makeshift operating room is required.',
-    'Find Bionics and Cybernetics Contraband adds +20% and grants source-listed professional discounts.',
-    'Recognize Quality of Bionics & Cybernetics: 60% +3% per level.',
     'Can repair bionics cheaply, restore M.D.C., and maximize one listed performance trait or add one feature per body area under the class rules.',
-    '+4 vs Horror Factor, +2 vs pain, and +1 vs poison, drugs, and disease. W.P. Knife has +1 to strike.',
   ],
   source: { book: 'Rifts Ultimate Edition', pages: '89-91' },
 })
@@ -1359,6 +1440,16 @@ export const operator = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '92' },
   combatBonuses: { perception: 2 },
+  saveBonuses: { fatigue: 2, disease: 2 },
+  creationNotes: [
+    'A high P.P. and P.S. are handy, but the source gives no numeric recommendation.',
+    'At least two first-level O.C.C. Related selections must come from Mechanical skills.',
+    'Optional Psi-Operator is a Major psychic package that halves available O.C.C. Related selections; the current flat allowance model does not automate this optional variant.',
+  ],
+  situationalBonuses: [
+    'Find Parts and Components adds +20% for the listed machine and vehicle goods and grants source-listed discounts.',
+    'Recognize Machine Quality: 58% +3% per level.',
+  ],
   automaticSkills: [
     ['mathematics-basic', 20],
     ['computer-operation', 10],
@@ -1398,14 +1489,8 @@ export const operator = defineOcc({
     return 4 + [4, 8, 12, 14].filter((v) => level >= v).length
   },
   abilities: [
-    'A high P.P. and P.S. are handy, but the source gives no numeric recommendation.',
-    'At least two first-level O.C.C. Related selections must come from Mechanical skills.',
     'Jury-rigged repairs take half the usual time and last twice as long.',
-    'Find Parts and Components adds +20% for the listed machine and vehicle goods and grants source-listed discounts.',
-    'Recognize Machine Quality: 58% +3% per level.',
     'Can repair machines cheaply, restore or increase vehicle/body-armor M.D.C., maximize performance, and add features under the class rules. These abilities exclude bionics and cybernetics and are -20% for robots/power armor without the required skills.',
-    'Optional Psi-Operator is a Major psychic package that halves available O.C.C. Related selections; the current flat allowance model does not automate this optional variant.',
-    '+2 vs fatigue and disease.',
   ],
   source: { book: 'Rifts Ultimate Edition', pages: '91-93' },
 })
@@ -1452,6 +1537,15 @@ export const rogueScholar = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '94' },
   combatBonuses: { perception: 5 },
+  creationNotes: [
+    'A high M.E. is helpful, but the source gives no numeric recommendation.',
+    'At least four first-level O.C.C. Related selections must come from Technical skills.',
+  ],
+  situationalBonuses: [
+    'Find Books and Historical Artifacts adds +20% and grants source-listed professional discounts.',
+    'Recognize Authenticity: 58% +3% per level.',
+    'Professional Restoration: 58% +3% per level and +10% to Art, Calligraphy, Forgery, and Photography.',
+  ],
   automaticSkills: [
     ['literacy-native', 50],
     ['appraise-goods', 20],
@@ -1505,11 +1599,7 @@ export const rogueScholar = defineOcc({
     return 3 + [2, 5, 8, 12, 15].filter((v) => level >= v).length
   },
   abilities: [
-    'A high M.E. is helpful, but the source gives no numeric recommendation.',
-    'At least four first-level O.C.C. Related selections must come from Technical skills.',
     'Storyteller & Teacher can teach a Secondary Skill after 1D6+8 weeks under the source-listed study schedule.',
-    'Find Books and Historical Artifacts adds +20% and grants source-listed professional discounts.',
-    'Recognize Authenticity: 58% +3% per level. Professional Restoration: 58% +3% per level and +10% to Art, Calligraphy, Forgery, and Photography.',
   ],
   source: { book: 'Rifts Ultimate Edition', pages: '93-95' },
 })
@@ -1547,6 +1637,17 @@ export const rogueScientist = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '96' },
   combatBonuses: { perception: 4 },
+  saveBonuses: { insanity: 2, disease: 2 },
+  creationNotes: [
+    'A high M.E. and P.E. are helpful, but the source gives no numeric recommendation.',
+    'The fifteen first-level O.C.C. Related selections must include three Science, two Medical, and two Technical skills; the other eight may include more from those categories.',
+  ],
+  situationalBonuses: [
+    'Analyze adds +10% to the listed analytical skills and +1 Perception while focused on analysis.',
+    'Hypothesize adds +20% to Jury-Rig and Brewing for a temporary insight and halves penalties for extremely alien physiology or technology.',
+    'Find the Exotic adds +20% for scientific equipment, medicine, rare specimens, and related parts; +10% for electrical, mechanical, scholastic, or bionic contraband, with source-listed discounts.',
+    'Recognize Scientific Authenticity and Quality: 57% +3% per level; halved for unknown alien items and inapplicable to magic items.',
+  ],
   automaticSkills: [
     ['astronomy-navigation', 20],
     ['mathematics-basic', 30],
@@ -1575,15 +1676,7 @@ export const rogueScientist = defineOcc({
   secondaryAtLevel(level) {
     return 4 + [2, 4, 7, 10, 13].filter((v) => level >= v).length
   },
-  abilities: [
-    'A high M.E. and P.E. are helpful, but the source gives no numeric recommendation.',
-    'The fifteen first-level O.C.C. Related selections must include three Science, two Medical, and two Technical skills; the other eight may include more from those categories.',
-    'Analyze adds +10% to the listed analytical skills and +1 Perception while focused on analysis.',
-    'Hypothesize adds +20% to Jury-Rig and Brewing for a temporary insight and halves penalties for extremely alien physiology or technology.',
-    'Find the Exotic adds +20% for scientific equipment, medicine, rare specimens, and related parts; +10% for electrical, mechanical, scholastic, or bionic contraband, with source-listed discounts.',
-    'Recognize Scientific Authenticity and Quality: 57% +3% per level; halved for unknown alien items and inapplicable to magic items.',
-    '+2 vs insanity and disease.',
-  ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '95-97' },
 })
 
@@ -1626,6 +1719,13 @@ export const vagabond = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '97' },
   combatBonuses: { perception: 4 },
+  saveBonuses: { possession: 1, psionics: 1, horrorFactor: 2 },
+  creationNotes: [
+    'Hand to Hand: Basic is automatic; Expert costs one Related selection, Martial Arts or evil-alignment Assassin costs two.',
+  ],
+  situationalBonuses: [
+    'Eyeball a Fella: 56% +3% per level to size up a person after a few minutes of observation; adds +10% to Barter, Cardsharp, Gambling, I.D. Undercover Agent, conversational Research, and Seduction.',
+  ],
   automaticSkills: [
     ['barter', 16],
     ['begging', 10],
@@ -1695,11 +1795,7 @@ export const vagabond = defineOcc({
   secondaryAtLevel(level) {
     return 8 + [3, 5, 7, 9, 11, 13].filter((v) => level >= v).length
   },
-  abilities: [
-    'Eyeball a Fella: 56% +3% per level to size up a person after a few minutes of observation; adds +10% to Barter, Cardsharp, Gambling, I.D. Undercover Agent, conversational Research, and Seduction.',
-    'Hand to Hand: Basic is automatic; Expert costs one Related selection, Martial Arts or evil-alignment Assassin costs two.',
-    '+1 vs possession and psionic attacks, and +2 vs Horror Factor.',
-  ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '97-99' },
 })
 
@@ -1739,6 +1835,18 @@ export const wildernessScout = defineOcc({
   ],
   attributeBonusSource: { book: 'Rifts Ultimate Edition', pages: '99' },
   combatBonuses: { initiative: 1, perception: 3, roll: 2, coma: 10 },
+  saveBonuses: { poison: 2, disease: 2 },
+  saveProgression: { horrorFactor: [2, 4, 6, 9, 12, 15] },
+  creationNotes: [
+    'A high P.S. and M.E. are helpful, but the source gives no numeric recommendation.',
+    'The nine first-level O.C.C. Related selections must include two Physical and one Wilderness skill; the remaining six may come from any eligible category.',
+    'Pilot O.C.C. Related choices exclude robots, power armor, military vehicles, and large noisy vehicles; the last category remains a manual eligibility judgment because the shared Pilot catalog does not classify vehicle size or noise.',
+  ],
+  situationalBonuses: [
+    'Trail Blazing: 20% +5% per level.',
+    'Cross-Country Pacing: 35% +5% per level, with the source-listed sustained travel rates and trip-time estimates.',
+    'Cartography: 40% +5% per level; includes fixed Basic Math 50% or gives +5% to a separately selected Math: Basic skill.',
+  ],
   automaticSkills: [
     ['physical-8', 0],
     ['cook', 15],
@@ -1790,14 +1898,7 @@ export const wildernessScout = defineOcc({
   secondaryAtLevel(level) {
     return 4 + [3, 6, 9, 12].filter((v) => level >= v).length
   },
-  abilities: [
-    'A high P.S. and M.E. are helpful, but the source gives no numeric recommendation.',
-    'The nine first-level O.C.C. Related selections must include two Physical and one Wilderness skill; the remaining six may come from any eligible category.',
-    'Trail Blazing: 20% +5% per level. Cross-Country Pacing: 35% +5% per level, with the source-listed sustained travel rates and trip-time estimates.',
-    'Cartography: 40% +5% per level; includes fixed Basic Math 50% or gives +5% to a separately selected Math: Basic skill.',
-    'Pilot O.C.C. Related choices exclude robots, power armor, military vehicles, and large noisy vehicles; the last category remains a manual eligibility judgment because the shared Pilot catalog does not classify vehicle size or noise.',
-    '+2 vs poison and disease, +10% vs coma/death, and +1 vs Horror Factor at levels 2, 4, 6, 9, 12, and 15.',
-  ],
+  abilities: [],
   source: { book: 'Rifts Ultimate Edition', pages: '99-100' },
 })
 

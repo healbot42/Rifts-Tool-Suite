@@ -977,8 +977,14 @@ const effectiveAttributes = computed(() =>
     ]),
   ),
 )
+function classProgressionBonus(group, key) {
+  return (activeOcc.value?.[group]?.[key] || []).filter(
+    (level) => state.level >= level,
+  ).length
+}
 const derived = computed(() => {
   const classBonuses = activeOcc.value?.combatBonuses || {}
+  const saveBonuses = activeOcc.value?.saveBonuses || {}
   const totalAttacks =
     (+state.attacks || 0) +
     trainedEffects.value.attacks +
@@ -1014,28 +1020,54 @@ const derived = computed(() => {
     roll:
       (+state.combat.roll || 0) +
       trainedEffects.value.combat.roll +
-      (classBonuses.roll || 0),
+      (classBonuses.roll || 0) +
+      classProgressionBonus('combatProgression', 'roll'),
+    automaticDodge: classProgressionBonus(
+      'combatProgression',
+      'automaticDodge',
+    ),
     initiative:
       attributeBonus('ppInitiative', effectiveAttributes.value.pp) +
       (+state.combat.initiative || 0) +
       trainedEffects.value.combat.initiative +
-      (classBonuses.initiative || 0),
+      (classBonuses.initiative || 0) +
+      classProgressionBonus('combatProgression', 'initiative'),
     perception:
       (+state.combat.perception || 0) +
       trainedEffects.value.perception +
       (classBonuses.perception || 0),
-    psionics: attributeBonus('mePsionics', effectiveAttributes.value.me),
-    insanity: attributeBonus('meInsanity', effectiveAttributes.value.me),
+    psionics:
+      attributeBonus('mePsionics', effectiveAttributes.value.me) +
+      (saveBonuses.psionics || 0),
+    insanity:
+      attributeBonus('meInsanity', effectiveAttributes.value.me) +
+      (saveBonuses.insanity || 0),
     trust: attributeBonus('ma', effectiveAttributes.value.ma),
     charm: attributeBonus('pb', effectiveAttributes.value.pb),
     coma:
       attributeBonus('peComa', effectiveAttributes.value.pe) +
-      (activeOcc.value?.combatBonuses?.coma || 0),
-    poison: attributeBonus('peSave', effectiveAttributes.value.pe),
+      (classBonuses.coma || 0) +
+      (saveBonuses.coma || 0),
+    poison:
+      attributeBonus('peSave', effectiveAttributes.value.pe) +
+      Math.max(
+        saveBonuses.toxins || 0,
+        saveBonuses.poison || 0,
+        saveBonuses.drugs || 0,
+      ),
     magic:
       attributeBonus('peSave', effectiveAttributes.value.pe) +
-      (activeOcc.value?.id === 'combat-cyborg' ? 3 : 0),
-    possession: activeOcc.value?.id === 'combat-cyborg' ? 5 : 0,
+      (saveBonuses.magic || 0),
+    possession: saveBonuses.possession || 0,
+    mindControl: saveBonuses.mindControl || 0,
+    disease:
+      attributeBonus('peSave', effectiveAttributes.value.pe) +
+      (saveBonuses.disease || 0),
+    horrorFactor:
+      (saveBonuses.horrorFactor || 0) +
+      classProgressionBonus('saveProgression', 'horrorFactor'),
+    pain: saveBonuses.pain || 0,
+    fatigue: saveBonuses.fatigue || 0,
   }
 })
 
@@ -1138,23 +1170,41 @@ function derivedTooltip(field) {
     magic: [
       ...attributeLines('pe'),
       `Attribute-chart magic bonus: +${attributeBonus('peSave', a.pe)}`,
-      ...(activeOcc.value?.id === 'combat-cyborg'
-        ? ['Combat Cyborg O.C.C.: +3']
+      ...(activeOcc.value?.saveBonuses?.magic
+        ? [`${activeOcc.value.name}: +${activeOcc.value.saveBonuses.magic}`]
         : []),
       `Total save vs magic: +${derived.value.magic}`,
     ],
     poison: [
       ...attributeLines('pe'),
-      `Total save vs poison: +${derived.value.poison}`,
+      ...(Math.max(
+        activeOcc.value?.saveBonuses?.toxins || 0,
+        activeOcc.value?.saveBonuses?.poison || 0,
+        activeOcc.value?.saveBonuses?.drugs || 0,
+      )
+        ? [
+            `${activeOcc.value.name}: +${Math.max(
+              activeOcc.value.saveBonuses.toxins || 0,
+              activeOcc.value.saveBonuses.poison || 0,
+              activeOcc.value.saveBonuses.drugs || 0,
+            )}`,
+          ]
+        : []),
+      `Total save vs toxins, poison, drugs, and disease: +${derived.value.poison}`,
     ],
     possession: [
-      ...(activeOcc.value?.id === 'combat-cyborg'
-        ? ['Combat Cyborg O.C.C.: +5']
+      ...(activeOcc.value?.saveBonuses?.possession
+        ? [
+            `${activeOcc.value.name}: +${activeOcc.value.saveBonuses.possession}`,
+          ]
         : []),
       `Total save vs possession: +${derived.value.possession}`,
     ],
     psionicsInsanity: [
       `M.E.: ${a.me}`,
+      ...(activeOcc.value?.saveBonuses?.psionics
+        ? [`${activeOcc.value.name}: +${activeOcc.value.saveBonuses.psionics}`]
+        : []),
       `Save vs psionics: +${derived.value.psionics}`,
       `Save vs insanity: +${derived.value.insanity}`,
     ],
@@ -2187,7 +2237,29 @@ watch(
               ></template
             >
           </div>
-          <h3>Other abilities</h3>
+          <template
+            v-for="[heading, notes] in [
+              ['Character creation notes', activeOcc.creationNotes],
+              ['Resource rules', activeOcc.resourceNotes],
+              ['Equipment rules', activeOcc.equipmentNotes],
+            ]"
+            :key="heading"
+          >
+            <template v-if="notes.length">
+              <h3>{{ heading }}</h3>
+              <ul class="ability-list">
+                <li
+                  v-for="note in notes"
+                  :key="note"
+                  v-tooltip="note"
+                  tabindex="0"
+                >
+                  {{ note }}
+                </li>
+              </ul>
+            </template>
+          </template>
+          <h3 v-if="activeOcc.abilities.length">Other abilities</h3>
           <div
             v-if="activeOccMdc"
             class="class-stats"
@@ -2581,6 +2653,22 @@ watch(
                 >+{{ derived.psionics }} / +{{ derived.insanity }}</strong
               ></output
             >
+            <output v-if="derived.mindControl"
+              ><span>Save vs mind control</span
+              ><strong>+{{ derived.mindControl }}</strong></output
+            ><output v-if="activeOcc.saveBonuses.disease"
+              ><span>Save vs disease</span
+              ><strong>+{{ derived.disease }}</strong></output
+            ><output v-if="derived.horrorFactor"
+              ><span>Save vs Horror Factor</span
+              ><strong>+{{ derived.horrorFactor }}</strong></output
+            ><output v-if="derived.pain"
+              ><span>Save vs pain</span
+              ><strong>+{{ derived.pain }}</strong></output
+            ><output v-if="derived.fatigue"
+              ><span>Save vs fatigue</span
+              ><strong>+{{ derived.fatigue }}</strong></output
+            >
           </div>
           <h3>Combat bonuses</h3>
           <div class="combat-grid">
@@ -2615,6 +2703,9 @@ watch(
               tabindex="0"
               ><span>Total dodge</span
               ><strong>+{{ derived.dodge }}</strong></output
+            ><output v-if="derived.automaticDodge"
+              ><span>Automatic dodge</span
+              ><strong>+{{ derived.automaticDodge }}</strong></output
             ><output
               v-tooltip="derivedTooltip('roll')"
               class="derived-help"
@@ -2655,6 +2746,17 @@ watch(
             <ul class="situational-list">
               <li
                 v-for="note in trainedEffects.situational"
+                :key="note"
+              >
+                {{ note }}
+              </li>
+            </ul></template
+          >
+          <template v-if="activeOcc.situationalBonuses.length"
+            ><h3>Situational class bonuses</h3>
+            <ul class="situational-list">
+              <li
+                v-for="note in activeOcc.situationalBonuses"
                 :key="note"
               >
                 {{ note }}
@@ -3364,13 +3466,28 @@ watch(
             ><output
               ><span>Magic</span><strong>+{{ derived.magic }}</strong></output
             ><output
-              ><span>Poison</span><strong>+{{ derived.poison }}</strong></output
+              ><span>Toxins / poison</span
+              ><strong>+{{ derived.poison }}</strong></output
             ><output
               ><span>Possession</span
               ><strong>+{{ derived.possession }}</strong></output
             ><output
               ><span>Psionics</span
               ><strong>+{{ derived.psionics }}</strong></output
+            ><output v-if="derived.mindControl"
+              ><span>Mind control</span
+              ><strong>+{{ derived.mindControl }}</strong></output
+            ><output v-if="activeOcc.saveBonuses.disease"
+              ><span>Disease</span
+              ><strong>+{{ derived.disease }}</strong></output
+            ><output v-if="derived.horrorFactor"
+              ><span>Horror Factor</span
+              ><strong>+{{ derived.horrorFactor }}</strong></output
+            ><output v-if="derived.pain"
+              ><span>Pain</span><strong>+{{ derived.pain }}</strong></output
+            ><output v-if="derived.fatigue"
+              ><span>Fatigue</span
+              ><strong>+{{ derived.fatigue }}</strong></output
             ><output
               ><span>Insanity</span
               ><strong>+{{ derived.insanity }}</strong></output
@@ -3446,6 +3563,17 @@ watch(
           >
             No trained skills.
           </p>
+          <template v-if="activeOcc.situationalBonuses.length"
+            ><h3>Situational class bonuses</h3>
+            <ul class="situational-list">
+              <li
+                v-for="note in activeOcc.situationalBonuses"
+                :key="note"
+              >
+                {{ note }}
+              </li>
+            </ul></template
+          >
         </section>
       </div>
 
@@ -3465,6 +3593,9 @@ watch(
               ><span>Parry</span><strong>+{{ derived.parry }}</strong></output
             ><output
               ><span>Dodge</span><strong>+{{ derived.dodge }}</strong></output
+            ><output v-if="derived.automaticDodge"
+              ><span>Automatic dodge</span
+              ><strong>+{{ derived.automaticDodge }}</strong></output
             ><output
               ><span>Roll</span><strong>+{{ derived.roll }}</strong></output
             ><output
@@ -3760,7 +3891,7 @@ watch(
           </section>
         </section>
         <section
-          v-if="activeOcc"
+          v-if="activeOcc?.abilities.length"
           class="panel"
         >
           <h2>Class abilities</h2>

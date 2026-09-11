@@ -357,6 +357,10 @@ describe('character sheet calculations', () => {
       expect(Array.isArray(occ.choices)).toBe(true)
       expect(Array.isArray(occ.specializations)).toBe(true)
       expect(Array.isArray(occ.abilities)).toBe(true)
+      expect(Array.isArray(occ.creationNotes)).toBe(true)
+      expect(Array.isArray(occ.resourceNotes)).toBe(true)
+      expect(Array.isArray(occ.equipmentNotes)).toBe(true)
+      expect(Array.isArray(occ.situationalBonuses)).toBe(true)
     }
   })
 
@@ -508,7 +512,13 @@ describe('character sheet calculations', () => {
         book: 'Rifts Ultimate Edition',
         pages: expect.any(String),
       })
-      expect(occ.abilities.length).toBeGreaterThan(0)
+      expect(
+        occ.abilities.length +
+          occ.creationNotes.length +
+          occ.resourceNotes.length +
+          occ.equipmentNotes.length +
+          occ.situationalBonuses.length,
+      ).toBeGreaterThan(0)
       expect(occ.relatedAtLevel(15)).toBeGreaterThan(occ.relatedAtLevel(1))
       for (const [id] of occ.automaticSkills)
         expect(skillsById[id], `${occ.id}: missing ${id}`).toBeDefined()
@@ -519,6 +529,40 @@ describe('character sheet calculations', () => {
             `${occ.id}: missing choice ${id}`,
           ).toBeDefined()
     }
+  })
+
+  it('keeps class creation and calculated rules out of play abilities', () => {
+    for (const occ of occs) {
+      const abilities = occ.abilities.join(' ')
+      expect(abilities, occ.id).not.toMatch(
+        /attribute requirements|minimum P\.[A-Z]|choose .*language|select one MOS|record .* manually|P\.P\.E\. base|adds? \+?\d+ to .*skill/i,
+      )
+    }
+  })
+
+  it('keeps applied Crazies bonuses out of the play-time ability list', () => {
+    const crazy = occs.find((occ) => occ.id === 'crazy')
+    const abilities = crazy.abilities.join(' ')
+
+    expect(abilities).not.toMatch(/add \d|builder applies|record .* manually/i)
+    expect(abilities).toContain('carry and lift twice normal')
+    expect(abilities).toContain('heals twice normal')
+    expect(abilities).not.toMatch(
+      /automatic dodge|saving throws|delicate touch|minor psionics|P\.P\.E\. base|bionics/i,
+    )
+    expect(crazy.combatProgression).toEqual({
+      automaticDodge: [1, 3, 6, 9, 12, 15],
+      roll: [2, 5, 10, 15],
+    })
+    expect(crazy.saveBonuses).toEqual({
+      psionics: 2,
+      possession: 2,
+      mindControl: 6,
+      toxins: 4,
+    })
+    expect(crazy.situationalBonuses.join(' ')).toMatch(
+      /exceptional sight.*scent recognition.*delicate touch/i,
+    )
   })
 
   it('completes the Adventurers & Scholars section through its source boundary', () => {
