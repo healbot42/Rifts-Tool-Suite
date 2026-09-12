@@ -62,6 +62,35 @@ describe('Warhammer product catalog', () => {
     })
   })
 
+  it('adds faction context and cross-game exclusions for Drukhari Reavers', () => {
+    expect(
+      watchlistDraft({
+        id: 'reavers',
+        name: 'Reavers',
+        faction: 'Drukhari',
+        system: 'Warhammer 40,000',
+        msrp: 48,
+      }),
+    ).toMatchObject({
+      queries:
+        'Reavers, Reavers Drukhari, Reavers Warhammer 40,000, Dark Eldar Reavers',
+      aliases: 'Drukhari Reavers, Dark Eldar Reavers',
+      excluded_terms: 'Blood Bowl, Reikland Reavers, Warmachine, Doom Reavers',
+    })
+  })
+
+  it('keeps a bare-name query for every catalog product to protect recall', async () => {
+    const catalog = (
+      await import('../../../src/data/warhammer-product-catalog.json')
+    ).default
+    for (const product of catalog.products) {
+      const queries = watchlistDraft(product).queries.split(', ')
+      const bareName = product.name.replaceAll(',', '')
+      expect(queries[0]).toBe(bareName)
+      expect(queries).toContain(bareName)
+    }
+  })
+
   it('finds products by faction as well as name', () => {
     expect(
       catalogProductVisible(
@@ -115,6 +144,36 @@ describe('Warhammer product catalog', () => {
     const ids = catalog.default.products.map((product) => product.id)
     expect(ids.length).toBeGreaterThan(1000)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('classifies legacy Dark Eldar Reavers as Drukhari', async () => {
+    const catalog = (
+      await import('../../../src/data/warhammer-product-catalog.json')
+    ).default
+    expect(
+      catalog.products.find((product) => product.id === 'reavers'),
+    ).toMatchObject({
+      faction: 'Drukhari',
+      product_code: '99120112010',
+    })
+  })
+
+  it('uses canonical factions for identity-bearing shop URLs', async () => {
+    const catalog = (
+      await import('../../../src/data/warhammer-product-catalog.json')
+    ).default
+    const expectedFaction = (url) => {
+      const normalized = url.toLocaleLowerCase()
+      if (normalized.includes('dark-eldar') || normalized.includes('drukhari'))
+        return 'Drukhari'
+      if (normalized.includes('imperial-guard')) return 'Astra Militarum'
+      if (normalized.includes('genestealer-cults')) return 'Genestealer Cults'
+      return null
+    }
+    for (const product of catalog.products) {
+      const expected = expectedFaction(product.url)
+      if (expected) expect(product.faction, product.id).toBe(expected)
+    }
   })
 
   it('includes exact US MSRP matches from the official price list', async () => {

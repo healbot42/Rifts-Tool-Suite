@@ -207,15 +207,33 @@ export function catalogProductVisible(product, options) {
 }
 
 export function watchlistDraft(product) {
+  const isDrukhariReavers =
+    product.id === 'reavers' && product.faction === 'Drukhari'
+  // The editor uses commas as list separators, so punctuation commas cannot
+  // remain inside a generated query. Marketplace search treats them as spaces.
+  const searchableName = product.name.replaceAll(',', '')
+  const contextualQueries = [
+    searchableName,
+    product.faction && !['General', 'Uncategorized'].includes(product.faction)
+      ? `${searchableName} ${product.faction}`
+      : '',
+    product.system ? `${searchableName} ${product.system}` : '',
+  ].filter((query, index, queries) => query && queries.indexOf(query) === index)
   return {
     id: product.id,
     name: product.name,
     msrp: product.msrp ?? '',
-    queries: product.name,
-    aliases: '',
+    // Keep the bare-name query first for recall. Contextual queries improve
+    // marketplace relevance without making faction wording a match requirement.
+    queries: isDrukhariReavers
+      ? [...contextualQueries, 'Dark Eldar Reavers'].join(', ')
+      : contextualQueries.join(', '),
+    aliases: isDrukhariReavers ? 'Drukhari Reavers, Dark Eldar Reavers' : '',
     expected_models: '',
     minimum_models: '',
     required_terms: '',
-    excluded_terms: '',
+    excluded_terms: isDrukhariReavers
+      ? 'Blood Bowl, Reikland Reavers, Warmachine, Doom Reavers'
+      : '',
   }
 }

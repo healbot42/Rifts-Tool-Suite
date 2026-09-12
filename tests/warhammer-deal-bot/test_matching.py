@@ -143,6 +143,50 @@ def test_mkiv_variants_normalize(gal_vorbak):
     assert matches_product("Horus Heresy Mk 4 Tactical Squad NIB", gal_vorbak)
 
 
+def test_reavers_rejects_cross_game_names(gal_vorbak):
+    gal_vorbak.name = "Reavers"
+    gal_vorbak.aliases = ["Drukhari Reavers", "Dark Eldar Reavers"]
+
+    assert matches_product(
+        "Warhammer 40K Drukhari Reavers new on sprue", gal_vorbak
+    )
+    assert matches_product("Dark Eldar Reavers boxed", gal_vorbak)
+    for title in (
+        "Blood Bowl Reikland Reavers team new",
+        "Reikland Reavers team painted",
+        "Warmachine Doom Reavers unit",
+        "Doom Reavers unit painted",
+        "Privateer Press Warmachine Doom Reavers",
+    ):
+        assert not matches_product(title, gal_vorbak)
+
+
+def test_model_names_do_not_match_paint_or_other_manufacturers(gal_vorbak):
+    assert not matches_product("Citadel Base: Gal Vorbak Red", gal_vorbak)
+    gal_vorbak.name = "Basilisk"
+    gal_vorbak.aliases = []
+    for title in (
+        "Bolt Action Basilisk conversion model",
+        "Mantic Games Basilisk miniature",
+        "Kings of War Basilisk new",
+        "Malifaux Basilisk proxy",
+    ):
+        assert not matches_product(title, gal_vorbak)
+
+
+def test_every_configured_search_query_still_matches_its_product():
+    from pathlib import Path
+
+    from warhammer_deal_bot.config import load_config
+
+    config = load_config(
+        Path(__file__).parents[2] / "warhammer-deal-bot" / "config.example.yaml"
+    )
+    for product in config.products:
+        for query in product.queries:
+            assert matches_product(query, product), (product.id, query)
+
+
 def test_quantity_inference_handles_common_ebay_title_forms():
     assert infer_quantity("Squad set of 4 miniatures") == 4
     assert infer_quantity("Marines 3x new on sprue") == 3
@@ -224,6 +268,10 @@ def test_added_watchlist_items_match_complete_kits_and_separate_land_raiders():
     )
     assert not matches_product(
         "Land Raider Redeemer Crusader NIB",
+        products["space-marine-land-raider"],
+    )
+    assert not matches_product(
+        "Chaos Space Marines Chaos Land Raider NIB",
         products["space-marine-land-raider"],
     )
     assert not matches_product(

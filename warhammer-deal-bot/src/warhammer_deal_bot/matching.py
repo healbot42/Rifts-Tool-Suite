@@ -48,6 +48,21 @@ GLOBAL_REJECTIONS = (
     "missing arm",
     "missing parts",
     "no jump packs",
+    # Other miniature games can have units whose names overlap a watched GW
+    # kit. Reject both the game names and well-known overlapping unit names so
+    # short searches such as "Reavers" cannot produce cross-game alerts.
+    "blood bowl",
+    "warmachine",
+    "reikland reavers",
+    "reikland reivers",
+    "doom reavers",
+    "privateer press",
+    "mantic games",
+    "kings of war",
+    "malifaux",
+    "warlord games",
+    "bolt action",
+    "citadel base",
 )
 
 # Packaging phrases used by the current Epic-scale range even when a seller
@@ -62,6 +77,7 @@ LEGIONS_IMPERIALIS_TITLE_FINGERPRINTS = (
 
 def normalize(text: str) -> str:
     text = text.casefold().replace("×", "x").replace("mkiv", "mark 4").replace("mk iv", "mark 4")
+    text = text.replace("mark iv", "mark 4")
     text = re.sub(r"\bmk\s*4\b", "mark 4", text)
     return " ".join(re.findall(r"[a-z0-9]+", text))
 

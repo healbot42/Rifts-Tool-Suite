@@ -52,11 +52,21 @@ def normalize(
         return None
     code = str(record.get("productCode", ""))
     name = str(record.get("name", "")).strip()
+    faction = str(record.get("faction", "Uncategorized"))
+    # WarHub currently groups legacy "Dark Eldar" shop URLs under Aeldari.
+    # Preserve the actual army identity for filtering and search drafting.
+    url_slug = url.casefold()
+    if "dark-eldar" in url_slug or "drukhari" in url_slug:
+        faction = "Drukhari"
+    elif "imperial-guard" in url_slug:
+        faction = "Astra Militarum"
+    elif "genestealer-cults" in url_slug:
+        faction = "Genestealer Cults"
     return {
         "id": slug(name),
         "name": name,
         "system": SYSTEMS[system],
-        "faction": str(record.get("faction", "Uncategorized")),
+        "faction": faction,
         "product_code": code,
         "url": url.replace("/en-GB/", "/en-US/"),
         "image_url": record.get("imageUrl"),

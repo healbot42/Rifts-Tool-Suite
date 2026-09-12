@@ -138,7 +138,7 @@ products:
     excluded_terms: [Omega, Venator, Arcus, Punisher]
   - id: predator
     name: Horus Heresy Predator Battle Tank
-    aliases: [Predator Battle Tank, Deimos Pattern Predator]
+    aliases: [Predator Battle Tank, Deimos Pattern Predator, Deimos Predator]
     queries: ['Horus Heresy Predator Battle Tank', 'Deimos Predator']
     quantity_wanted: 2
     msrp: 70
@@ -314,6 +314,7 @@ products:
     minimum_savings: 15
     excluded_terms:
       [
+        chaos land raider,
         Proteus,
         Spartan,
         Crusader,
