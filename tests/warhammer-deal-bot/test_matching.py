@@ -157,6 +157,8 @@ def test_reavers_rejects_cross_game_names(gal_vorbak):
         "Warmachine Doom Reavers unit",
         "Doom Reavers unit painted",
         "Privateer Press Warmachine Doom Reavers",
+        "SIF Greyjoy Ironborn Reavers",
+        "Hasbro Marvel Legends Lady Deathstrike X-men Reavers Xemnu Wave",
     ):
         assert not matches_product(title, gal_vorbak)
 
@@ -170,6 +172,26 @@ def test_model_names_do_not_match_paint_or_other_manufacturers(gal_vorbak):
         "Mantic Games Basilisk miniature",
         "Kings of War Basilisk new",
         "Malifaux Basilisk proxy",
+    ):
+        assert not matches_product(title, gal_vorbak)
+
+
+def test_catalog_names_reject_epic_paint_and_card_collisions(gal_vorbak):
+    gal_vorbak.name = "Fire Prism"
+    gal_vorbak.aliases = []
+    for title in (
+        "Epic Eldar Fire Prism - Aeldari - Epic Warhammer 40k GW Classic Metal",
+        "Epic Eldar Fire Prism Grav-Tanks - Epic Warhammer 40K GW Classic Metal",
+    ):
+        assert not matches_product(title, gal_vorbak)
+    assert matches_product(
+        "Fire Prism from an epic painted Aeldari army", gal_vorbak
+    )
+
+    gal_vorbak.name = "Fuegan"
+    for title in (
+        "Citadel Shade Fuegan Orange Paint",
+        "Warhammer 40k CCG FOIL Fuegan",
     ):
         assert not matches_product(title, gal_vorbak)
 
