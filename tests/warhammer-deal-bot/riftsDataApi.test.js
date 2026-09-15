@@ -51,8 +51,20 @@ describe('Rifts data API', () => {
       {
         DB: {
           batch: async () => {},
-          prepare: () => ({
-            bind: () => ({ all: async () => ({ results: [] }) }),
+          prepare: (sql) => ({
+            bind: () => ({
+              run: async () => ({}),
+              first: async () =>
+                sql.includes('FROM users')
+                  ? {
+                      id: 'stable-user-id',
+                      email: 'owner@example.com',
+                      created_at: '2026-09-15T00:00:00Z',
+                      updated_at: '2026-09-15T00:00:00Z',
+                    }
+                  : null,
+              all: async () => ({ results: [] }),
+            }),
           }),
         },
       },
@@ -60,7 +72,12 @@ describe('Rifts data API', () => {
     )
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
-      owner: 'owner@example.com',
+      user: {
+        id: 'stable-user-id',
+        email: 'owner@example.com',
+        created_at: '2026-09-15T00:00:00Z',
+        updated_at: '2026-09-15T00:00:00Z',
+      },
       products: [],
     })
   })

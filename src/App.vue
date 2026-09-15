@@ -2,6 +2,7 @@
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import { pageFromHash } from './lib/navigation.js'
 import { APP_RELEASE_LABEL } from './lib/release.js'
+import { beginAuthentication, loadSession, logout } from './lib/auth.js'
 
 // Each tool is an isolated feature module and loads only when opened.
 const TwCalculator = defineAsyncComponent(
@@ -21,140 +22,206 @@ const DealWatchlist = defineAsyncComponent(
 )
 
 const activePage = ref(pageFromHash(window.location.hash))
+const authStatus = ref('loading')
+const user = ref(null)
 const syncPageFromHash = () => {
   activePage.value = pageFromHash(window.location.hash)
 }
 
-onMounted(() => window.addEventListener('hashchange', syncPageFromHash))
+onMounted(async () => {
+  window.addEventListener('hashchange', syncPageFromHash)
+  const session = await loadSession()
+  user.value = session.user
+  authStatus.value = session.authenticated ? 'authenticated' : 'anonymous'
+})
 onBeforeUnmount(() =>
   window.removeEventListener('hashchange', syncPageFromHash),
 )
 </script>
 
 <template>
-  <nav
-    class="app-ribbon"
-    aria-label="Rifts Tool Suite pages"
+  <main
+    v-if="authStatus === 'loading'"
+    class="auth-screen"
+    aria-live="polite"
   >
-    <div class="app-ribbon-inner">
-      <a
-        class="app-page-link"
-        :class="{ active: activePage === 'tw-calculator' }"
-        href="#tw-calculator"
-        :aria-current="activePage === 'tw-calculator' ? 'page' : undefined"
+    <p class="eyebrow">Rifts Tool Suite</p>
+    <h1>Checking your session…</h1>
+  </main>
+
+  <main
+    v-else-if="authStatus === 'anonymous'"
+    class="auth-screen"
+  >
+    <p class="eyebrow">Rifts Tool Suite</p>
+    <h1>Sign in to continue</h1>
+    <p>
+      Sign in with a verified email through Cloudflare Access. Your first
+      successful sign-in creates your account automatically.
+    </p>
+    <div class="auth-actions">
+      <button
+        type="button"
+        @click="beginAuthentication"
       >
-        <svg
-          class="app-page-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            d="M12 6V3l2-2M9 6h6M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
-          />
-          <circle
-            cx="8.5"
-            cy="13.5"
-            r="3"
-          />
-          <path d="m7 14 1.5-1.5 1.5 1M14 11h4M14 14h4M14 17h2" />
-        </svg>
-        <span>TW Calculator</span>
-      </a>
-      <a
-        class="app-page-link"
-        :class="{ active: activePage === 'tw-device-browser' }"
-        href="#tw-device-browser"
-        :aria-current="activePage === 'tw-device-browser' ? 'page' : undefined"
+        Sign in
+      </button>
+      <button
+        type="button"
+        class="secondary"
+        @click="beginAuthentication"
       >
-        <svg
-          class="app-page-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="M4 6h16v12H4zM7 9h7v6H7zM17 9v2M17 14v1M9 6V3l2-2M14 4h3" />
-          <circle
-            cx="17"
-            cy="12"
-            r="1"
-          />
-        </svg>
-        <span>Armory</span>
-      </a>
-      <a
-        class="app-page-link"
-        :class="{ active: activePage === 'initiative-tracker' }"
-        href="#initiative-tracker"
-        :aria-current="activePage === 'initiative-tracker' ? 'page' : undefined"
-      >
-        <svg
-          class="app-page-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="M7 5h14M7 12h14M7 19h14" />
-          <circle
-            cx="3"
-            cy="5"
-            r="1"
-          />
-          <circle
-            cx="3"
-            cy="12"
-            r="1"
-          />
-          <circle
-            cx="3"
-            cy="19"
-            r="1"
-          />
-          <path d="m17 2 2 3-2 3" />
-        </svg>
-        <span>Initiative Tracker</span>
-      </a>
-      <a
-        class="app-page-link"
-        :class="{ active: activePage === 'character-sheet' }"
-        href="#character-sheet"
-        :aria-current="activePage === 'character-sheet' ? 'page' : undefined"
-      >
-        <svg
-          class="app-page-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle
-            cx="12"
-            cy="7"
-            r="4"
-          />
-          <path d="M4 21c.7-5 3.4-8 8-8s7.3 3 8 8M8 17l4 3 4-3" />
-        </svg>
-        <span>Character Sheet</span>
-      </a>
-      <a
-        class="app-page-link"
-        :class="{ active: activePage === 'deal-watchlist' }"
-        href="#deal-watchlist"
-        :aria-current="activePage === 'deal-watchlist' ? 'page' : undefined"
-      >
-        <svg
-          class="app-page-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="M4 5h16v14H4zM8 9h8M8 13h5M8 17h3" />
-          <path d="m15 16 2 2 4-5" />
-        </svg>
-        <span>Deal Watchlist</span>
-      </a>
+        Create account
+      </button>
     </div>
-  </nav>
+  </main>
 
-  <TwCalculator v-if="activePage === 'tw-calculator'" />
-  <TwDeviceBrowser v-else-if="activePage === 'tw-device-browser'" />
-  <InitiativeTracker v-else-if="activePage === 'initiative-tracker'" />
-  <CharacterSheet v-else-if="activePage === 'character-sheet'" />
-  <DealWatchlist v-else />
+  <template v-else>
+    <nav
+      class="app-ribbon"
+      aria-label="Rifts Tool Suite pages"
+    >
+      <div class="app-ribbon-inner">
+        <a
+          class="app-page-link"
+          :class="{ active: activePage === 'tw-calculator' }"
+          href="#tw-calculator"
+          :aria-current="activePage === 'tw-calculator' ? 'page' : undefined"
+        >
+          <svg
+            class="app-page-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 6V3l2-2M9 6h6M5 6h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
+            />
+            <circle
+              cx="8.5"
+              cy="13.5"
+              r="3"
+            />
+            <path d="m7 14 1.5-1.5 1.5 1M14 11h4M14 14h4M14 17h2" />
+          </svg>
+          <span>TW Calculator</span>
+        </a>
+        <a
+          class="app-page-link"
+          :class="{ active: activePage === 'tw-device-browser' }"
+          href="#tw-device-browser"
+          :aria-current="
+            activePage === 'tw-device-browser' ? 'page' : undefined
+          "
+        >
+          <svg
+            class="app-page-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 6h16v12H4zM7 9h7v6H7zM17 9v2M17 14v1M9 6V3l2-2M14 4h3"
+            />
+            <circle
+              cx="17"
+              cy="12"
+              r="1"
+            />
+          </svg>
+          <span>Armory</span>
+        </a>
+        <a
+          class="app-page-link"
+          :class="{ active: activePage === 'initiative-tracker' }"
+          href="#initiative-tracker"
+          :aria-current="
+            activePage === 'initiative-tracker' ? 'page' : undefined
+          "
+        >
+          <svg
+            class="app-page-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="M7 5h14M7 12h14M7 19h14" />
+            <circle
+              cx="3"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="3"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="3"
+              cy="19"
+              r="1"
+            />
+            <path d="m17 2 2 3-2 3" />
+          </svg>
+          <span>Initiative Tracker</span>
+        </a>
+        <a
+          class="app-page-link"
+          :class="{ active: activePage === 'character-sheet' }"
+          href="#character-sheet"
+          :aria-current="activePage === 'character-sheet' ? 'page' : undefined"
+        >
+          <svg
+            class="app-page-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle
+              cx="12"
+              cy="7"
+              r="4"
+            />
+            <path d="M4 21c.7-5 3.4-8 8-8s7.3 3 8 8M8 17l4 3 4-3" />
+          </svg>
+          <span>Character Sheet</span>
+        </a>
+        <a
+          class="app-page-link"
+          :class="{ active: activePage === 'deal-watchlist' }"
+          href="#deal-watchlist"
+          :aria-current="activePage === 'deal-watchlist' ? 'page' : undefined"
+        >
+          <svg
+            class="app-page-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="M4 5h16v14H4zM8 9h8M8 13h5M8 17h3" />
+            <path d="m15 16 2 2 4-5" />
+          </svg>
+          <span>Deal Watchlist</span>
+        </a>
+        <div class="app-account">
+          <span>
+            <strong>{{ user.email }}</strong>
+            <small
+              >Account created
+              {{ new Date(user.created_at).toLocaleDateString() }}</small
+            >
+          </span>
+          <button
+            type="button"
+            @click="logout"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
+    </nav>
 
-  <footer class="app-footer">{{ APP_RELEASE_LABEL }}</footer>
+    <TwCalculator v-if="activePage === 'tw-calculator'" />
+    <TwDeviceBrowser v-else-if="activePage === 'tw-device-browser'" />
+    <InitiativeTracker v-else-if="activePage === 'initiative-tracker'" />
+    <CharacterSheet v-else-if="activePage === 'character-sheet'" />
+    <DealWatchlist v-else />
+
+    <footer class="app-footer">{{ APP_RELEASE_LABEL }}</footer>
+  </template>
 </template>

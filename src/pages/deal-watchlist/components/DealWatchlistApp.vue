@@ -194,7 +194,7 @@ async function load() {
       watchlistApi.chairSettings(),
     ])
     products.value = result.products
-    owner.value = result.owner
+    owner.value = result.user.email
     Object.assign(chairSettings, chairResult.settings)
   } catch (cause) {
     error.value = cause.message

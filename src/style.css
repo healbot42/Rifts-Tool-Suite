@@ -219,3 +219,49 @@ button:disabled {
     width: calc(100% - 1rem);
   }
 }
+.auth-screen {
+  width: min(34rem, calc(100% - 2rem));
+  margin: 12vh auto 0;
+  padding: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 25%);
+}
+
+.auth-screen h1,
+.auth-screen p {
+  margin-top: 0;
+}
+
+.auth-actions,
+.app-account {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.app-account {
+  margin-left: auto;
+  font-size: 0.8rem;
+}
+
+.app-account > span {
+  display: grid;
+  text-align: right;
+}
+
+.app-account small {
+  color: var(--color-text-muted);
+}
+
+.app-account button {
+  padding: 0.35rem 0.55rem;
+}
+
+@media (max-width: 760px) {
+  .app-account {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

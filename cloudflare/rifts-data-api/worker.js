@@ -35,6 +35,11 @@ async function authorized(request, env) {
 
 async function ensureSchema(db) {
   await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS deal_observations (
       source TEXT NOT NULL, source_listing_id TEXT NOT NULL, product_id TEXT NOT NULL,
       observed_at TEXT NOT NULL, delivered_price TEXT NOT NULL, title TEXT NOT NULL,
@@ -43,16 +48,32 @@ async function ensureSchema(db) {
     db.prepare(`CREATE INDEX IF NOT EXISTS deal_observations_product_time
       ON deal_observations(product_id, observed_at)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS purchases (
-      product_id TEXT PRIMARY KEY, quantity INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT NOT NULL)`),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id TEXT NOT NULL, quantity INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL, PRIMARY KEY (user_id, product_id))`),
     db.prepare(`CREATE TABLE IF NOT EXISTS watchlist_products (
-      owner_id TEXT NOT NULL, product_id TEXT NOT NULL, config_json TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id TEXT NOT NULL, config_json TEXT NOT NULL,
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-      PRIMARY KEY (owner_id, product_id))`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS watchlist_products_owner
-      ON watchlist_products(owner_id, updated_at)`),
+      PRIMARY KEY (user_id, product_id))`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS watchlist_products_user
+      ON watchlist_products(user_id, updated_at)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS chair_settings (
-      owner_id TEXT PRIMARY KEY, config_json TEXT NOT NULL, updated_at TEXT NOT NULL)`),
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      config_json TEXT NOT NULL, updated_at TEXT NOT NULL)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS session_members (
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('owner', 'editor', 'viewer')),
+      joined_at TEXT NOT NULL, PRIMARY KEY (session_id, user_id))`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS initiative_session_state (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      state_json TEXT NOT NULL, updated_at TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1)`),
   ])
 }
 
@@ -256,6 +277,53 @@ async function accessOwner(request, ctx) {
   return accessEmail ? accessEmail.trim().toLowerCase() : null
 }
 
+async function provisionUser(db, email) {
+  const now = new Date().toISOString()
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO users(id, email, created_at, updated_at)
+       VALUES (?, ?, ?, ?)`,
+    )
+    .bind(crypto.randomUUID(), email, now, now)
+    .run()
+  const user = await db
+    .prepare(
+      'SELECT id, email, created_at, updated_at FROM users WHERE email=?',
+    )
+    .bind(email)
+    .first()
+  if (!user) throw new Error('Authenticated user could not be provisioned')
+  return user
+}
+
+function safeAppReturn(url) {
+  const candidate = url.searchParams.get('return_to')
+  if (!candidate) return null
+  try {
+    const destination = new URL(candidate)
+    return ALLOWED_ORIGINS.has(destination.origin) ? destination.href : null
+  } catch {
+    return null
+  }
+}
+
+async function selectedBotUser(db, env) {
+  if (env.DEAL_BOT_USER_ID) {
+    const user = await db
+      .prepare('SELECT id, email FROM users WHERE id=?')
+      .bind(String(env.DEAL_BOT_USER_ID))
+      .first()
+    if (!user) throw new Error('Configured DEAL_BOT_USER_ID does not exist')
+    return user
+  }
+  const result = await db
+    .prepare('SELECT id, email FROM users ORDER BY created_at')
+    .all()
+  if (result.results.length === 1) return result.results[0]
+  if (result.results.length === 0) return null
+  throw new Error('DEAL_BOT_USER_ID is required when multiple users exist')
+}
+
 async function watchlistRequest(request, env, ctx, url) {
   // These browser routes must remain under /v1/watchlist*, the path protected
   // by the Cloudflare Access application that injects the identity header.
@@ -263,18 +331,30 @@ async function watchlistRequest(request, env, ctx, url) {
   if (!owner)
     return json({ error: 'Cloudflare Access sign-in required' }, 403, request)
   await ensureSchema(env.DB)
+  const user = await provisionUser(env.DB, owner)
+  if (url.pathname === '/v1/watchlist/session' && request.method === 'GET') {
+    const destination = safeAppReturn(url)
+    if (destination) return Response.redirect(destination, 302)
+    return json({ user }, 200, request)
+  }
+  if (url.pathname === '/v1/watchlist/logout' && request.method === 'GET') {
+    const destination = safeAppReturn(url) || 'https://healbot42.github.io/'
+    const logout = new URL('/cdn-cgi/access/logout', url.origin)
+    logout.searchParams.set('returnTo', destination)
+    return Response.redirect(logout.href, 302)
+  }
   if (
     url.pathname === '/v1/watchlist/chair-settings' &&
     request.method === 'GET'
   ) {
     const row = await env.DB.prepare(
-      'SELECT config_json FROM chair_settings WHERE owner_id=?',
+      'SELECT config_json FROM chair_settings WHERE user_id=?',
     )
-      .bind(owner)
+      .bind(user.id)
       .first()
     return json(
       {
-        owner,
+        user,
         settings: row
           ? JSON.parse(row.config_json)
           : {
@@ -296,11 +376,11 @@ async function watchlistRequest(request, env, ctx, url) {
     try {
       const settings = normalizeChairSettings(await bodyJson(request))
       await env.DB.prepare(
-        `INSERT INTO chair_settings(owner_id, config_json, updated_at) VALUES (?, ?, ?)
-         ON CONFLICT(owner_id) DO UPDATE SET config_json=excluded.config_json,
+        `INSERT INTO chair_settings(user_id, config_json, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET config_json=excluded.config_json,
          updated_at=excluded.updated_at`,
       )
-        .bind(owner, JSON.stringify(settings), new Date().toISOString())
+        .bind(user.id, JSON.stringify(settings), new Date().toISOString())
         .run()
       return json({ settings }, 200, request)
     } catch (error) {
@@ -314,13 +394,13 @@ async function watchlistRequest(request, env, ctx, url) {
   if (request.method === 'GET' && url.pathname === '/v1/watchlist') {
     const result = await env.DB.prepare(
       `SELECT config_json FROM watchlist_products
-       WHERE owner_id=? ORDER BY updated_at DESC`,
+       WHERE user_id=? ORDER BY updated_at DESC`,
     )
-      .bind(owner)
+      .bind(user.id)
       .all()
     return json(
       {
-        owner,
+        user,
         products: result.results.map((row) => JSON.parse(row.config_json)),
       },
       200,
@@ -337,11 +417,11 @@ async function watchlistRequest(request, env, ctx, url) {
         return json({ error: 'Product ID mismatch' }, 400, request)
       const now = new Date().toISOString()
       await env.DB.prepare(
-        `INSERT INTO watchlist_products(owner_id, product_id, config_json, created_at,
-         updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(owner_id, product_id)
+        `INSERT INTO watchlist_products(user_id, product_id, config_json, created_at,
+         updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, product_id)
          DO UPDATE SET config_json=excluded.config_json, updated_at=excluded.updated_at`,
       )
-        .bind(owner, product.id, JSON.stringify(product), now, now)
+        .bind(user.id, product.id, JSON.stringify(product), now, now)
         .run()
       return json({ product }, 200, request)
     } catch (error) {
@@ -356,9 +436,9 @@ async function watchlistRequest(request, env, ctx, url) {
       url.pathname.slice('/v1/watchlist/'.length),
     )
     await env.DB.prepare(
-      'DELETE FROM watchlist_products WHERE owner_id=? AND product_id=?',
+      'DELETE FROM watchlist_products WHERE user_id=? AND product_id=?',
     )
-      .bind(owner, productId)
+      .bind(user.id, productId)
       .run()
     return json({ deleted: productId }, 200, request)
   }
@@ -384,49 +464,41 @@ async function handleRequest(request, env, ctx) {
   await ensureSchema(env.DB)
 
   if (request.method === 'GET' && url.pathname === '/v1/bot/watchlist') {
-    const owners = await env.DB.prepare(
-      'SELECT COUNT(DISTINCT owner_id) AS count, MIN(owner_id) AS owner FROM watchlist_products',
-    ).first()
-    if (Number(owners?.count || 0) === 0) return json({ products: [] })
-    if (Number(owners.count) > 1 && !env.DEAL_BOT_OWNER) {
-      return json(
-        { error: 'DEAL_BOT_OWNER is required when multiple owners exist' },
-        409,
-      )
+    let user
+    try {
+      user = await selectedBotUser(env.DB, env)
+    } catch (error) {
+      return json({ error: error.message }, 409)
     }
-    const owner = String(env.DEAL_BOT_OWNER || owners.owner)
-      .trim()
-      .toLowerCase()
+    if (!user) return json({ products: [] })
     const result = await env.DB.prepare(
-      'SELECT config_json FROM watchlist_products WHERE owner_id=? ORDER BY updated_at DESC',
+      'SELECT config_json FROM watchlist_products WHERE user_id=? ORDER BY updated_at DESC',
     )
-      .bind(owner)
+      .bind(user.id)
       .all()
     return json({
-      owner,
+      user_id: user.id,
       products: result.results.map((row) => JSON.parse(row.config_json)),
     })
   }
 
   if (request.method === 'GET' && url.pathname === '/v1/bot/chair-settings') {
-    const owners = await env.DB.prepare(
-      'SELECT COUNT(*) AS count, MIN(owner_id) AS owner FROM chair_settings',
-    ).first()
-    if (Number(owners?.count || 0) === 0) return json({ settings: {} })
-    if (Number(owners.count) > 1 && !env.DEAL_BOT_OWNER)
-      return json(
-        { error: 'DEAL_BOT_OWNER is required when multiple owners exist' },
-        409,
-      )
-    const owner = String(env.DEAL_BOT_OWNER || owners.owner)
-      .trim()
-      .toLowerCase()
+    let user
+    try {
+      user = await selectedBotUser(env.DB, env)
+    } catch (error) {
+      return json({ error: error.message }, 409)
+    }
+    if (!user) return json({ settings: {} })
     const row = await env.DB.prepare(
-      'SELECT config_json FROM chair_settings WHERE owner_id=?',
+      'SELECT config_json FROM chair_settings WHERE user_id=?',
     )
-      .bind(owner)
+      .bind(user.id)
       .first()
-    return json({ owner, settings: row ? JSON.parse(row.config_json) : {} })
+    return json({
+      user_id: user.id,
+      settings: row ? JSON.parse(row.config_json) : {},
+    })
   }
 
   if (request.method === 'GET' && url.pathname === '/v1/history') {
@@ -482,9 +554,19 @@ async function handleRequest(request, env, ctx) {
   }
 
   if (request.method === 'GET' && url.pathname === '/v1/purchases') {
+    let user
+    try {
+      user = await selectedBotUser(env.DB, env)
+    } catch (error) {
+      return json({ error: error.message }, 409)
+    }
+    if (!user) return json({ purchases: [] })
     const result = await env.DB.prepare(
-      'SELECT product_id, quantity, updated_at FROM purchases ORDER BY product_id',
-    ).all()
+      `SELECT product_id, quantity, updated_at FROM purchases
+       WHERE user_id=? ORDER BY product_id`,
+    )
+      .bind(user.id)
+      .all()
     return json({ purchases: result.results })
   }
 
@@ -500,13 +582,20 @@ async function handleRequest(request, env, ctx) {
         400,
       )
     }
+    let user
+    try {
+      user = await selectedBotUser(env.DB, env)
+    } catch (error) {
+      return json({ error: error.message }, 409)
+    }
+    if (!user) return json({ error: 'No Deal Bot user is configured' }, 409)
     const updatedAt = new Date().toISOString()
     await env.DB.prepare(
-      `INSERT INTO purchases(product_id, quantity, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT(product_id) DO UPDATE SET quantity=excluded.quantity,
+      `INSERT INTO purchases(user_id, product_id, quantity, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, product_id) DO UPDATE SET quantity=excluded.quantity,
        updated_at=excluded.updated_at`,
     )
-      .bind(productId, quantity, updatedAt)
+      .bind(user.id, productId, quantity, updatedAt)
       .run()
     return json({ product_id: productId, quantity, updated_at: updatedAt })
   }
