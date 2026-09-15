@@ -1,4 +1,5 @@
 const MAX_BODY_BYTES = 256 * 1024
+const OBSERVATION_RETENTION_DAYS = 30
 const ALLOWED_ORIGINS = new Set([
   'https://healbot42.github.io',
   'http://localhost:5173',
@@ -129,6 +130,44 @@ function validObservation(row) {
     return false
   }
   return !Number.isNaN(Date.parse(row.observed_at))
+}
+
+function observationRetentionCutoff(now = new Date()) {
+  return new Date(
+    now.getTime() - OBSERVATION_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString()
+}
+
+async function storeObservations(db, rows, now = new Date()) {
+  const inserts = rows.map((row) =>
+    db
+      .prepare(
+        `INSERT INTO deal_observations(source, source_listing_id, product_id,
+         observed_at, delivered_price, title, url, image_url, ends_at, available)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(source, source_listing_id, observed_at) DO UPDATE SET
+         delivered_price=excluded.delivered_price, title=excluded.title,
+         url=excluded.url, image_url=excluded.image_url, ends_at=excluded.ends_at,
+         available=excluded.available`,
+      )
+      .bind(
+        String(row.source),
+        String(row.source_listing_id),
+        String(row.product_id),
+        String(row.observed_at),
+        String(row.delivered_price),
+        String(row.title),
+        String(row.url),
+        row.image_url ? String(row.image_url) : null,
+        row.ends_at ? String(row.ends_at) : null,
+        row.available === false ? 0 : 1,
+      ),
+  )
+  const prune = db
+    .prepare('DELETE FROM deal_observations WHERE observed_at < ?')
+    .bind(observationRetentionCutoff(now))
+  await db.batch([prune, ...inserts])
+  return inserts.length
 }
 
 function normalizeStringList(value) {
@@ -527,30 +566,8 @@ async function handleRequest(request, env, ctx) {
         400,
       )
     }
-    const statements = payload.observations.map((row) =>
-      env.DB.prepare(
-        `INSERT INTO deal_observations(source, source_listing_id, product_id,
-         observed_at, delivered_price, title, url, image_url, ends_at, available)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(source, source_listing_id, observed_at) DO UPDATE SET
-         delivered_price=excluded.delivered_price, title=excluded.title,
-         url=excluded.url, image_url=excluded.image_url, ends_at=excluded.ends_at,
-         available=excluded.available`,
-      ).bind(
-        String(row.source),
-        String(row.source_listing_id),
-        String(row.product_id),
-        String(row.observed_at),
-        String(row.delivered_price),
-        String(row.title),
-        String(row.url),
-        row.image_url ? String(row.image_url) : null,
-        row.ends_at ? String(row.ends_at) : null,
-        row.available === false ? 0 : 1,
-      ),
-    )
-    if (statements.length) await env.DB.batch(statements)
-    return json({ stored: statements.length })
+    const stored = await storeObservations(env.DB, payload.observations)
+    return json({ stored })
   }
 
   if (request.method === 'GET' && url.pathname === '/v1/purchases') {
@@ -603,5 +620,5 @@ async function handleRequest(request, env, ctx) {
   return json({ error: 'Not found' }, 404)
 }
 
-export { handleRequest }
+export { handleRequest, observationRetentionCutoff, storeObservations }
 export default { fetch: handleRequest }
