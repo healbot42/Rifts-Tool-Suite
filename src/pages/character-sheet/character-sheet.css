@@ -902,6 +902,11 @@
 .equipment-editor-heading h2 {
   margin: 0;
 }
+.equipment-catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
 .equipment-section > header {
   display: flex;
   justify-content: space-between;

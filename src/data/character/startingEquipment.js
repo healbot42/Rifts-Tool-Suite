@@ -25,13 +25,28 @@ export const startingEquipmentPackages = {
         notes:
           'Polarized filters, Clock Calendar, and two sensory systems of choice.',
       }),
-      entry('bionic-weapons-tools', 'weapons', '', {
+      entry('sensory-systems', 'augmentations', '', {
+        quantity: 2,
+        choice: {
+          prompt: 'Choose two sensory systems',
+          augmentationChoiceId: 'combat-cyborg-sensory-systems',
+        },
+      }),
+      entry('bionic-weapons-tools', 'augmentations', '', {
         quantity: 4,
         ...choose('Choose four bionic weapons or tools'),
+        choice: {
+          prompt: 'Choose four bionic weapons or tools',
+          augmentationChoiceId: 'combat-cyborg-weapons-tools',
+        },
       }),
-      entry('bionic-features', 'items', '', {
+      entry('bionic-features', 'augmentations', '', {
         quantity: 4,
         ...choose('Choose four bionic features or accessories'),
+        choice: {
+          prompt: 'Choose four bionic features or accessories',
+          augmentationChoiceId: 'combat-cyborg-features-accessories',
+        },
       }),
       entry('upgrade-fund', 'items', 'Bionics upgrade fund', {
         notes: '3D6x1,000 + 15,000 credits',
@@ -215,8 +230,12 @@ export const startingEquipmentPackages = {
         ['clothing', 'Clothing'],
         ['personal-items', 'Personal items'],
       ]),
-      entry('implants', 'items', '', {
+      entry('implants', 'augmentations', '', {
         ...choose('Choose cybernetic/bionic starting package'),
+        choice: {
+          prompt: 'Choose cybernetic/bionic starting package',
+          augmentationChoiceId: 'headhunter-implant-package',
+        },
         notes:
           'Choose 1D4+1 implants plus one bionic limb and two limb weapons/components, or the partial-borg package on page 77.',
       }),
@@ -840,4 +859,22 @@ export function reconcileStartingEquipment(
     })
   }
   return next
+}
+
+export function removeSupersededStartingEquipment(
+  equipment,
+  retainedOrigins = [],
+) {
+  const retained = new Set(retainedOrigins.filter(Boolean))
+  return Object.fromEntries(
+    Object.entries(equipment).map(([kind, items]) => [
+      kind,
+      items.filter(
+        (item) =>
+          !item.startingOrigin ||
+          item.startingCustomized ||
+          retained.has(item.startingOrigin),
+      ),
+    ]),
+  )
 }

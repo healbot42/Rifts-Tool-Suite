@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  removeSupersededStartingEquipment,
   reconcileStartingEquipment,
   specializationEquipmentPackages,
   startingEquipmentPackages,
@@ -12,6 +13,7 @@ const blankEquipment = () => ({
   armor: [],
   vehicles: [],
   items: [],
+  augmentations: [],
 })
 
 describe('starting equipment packages', () => {
@@ -31,7 +33,13 @@ describe('starting equipment packages', () => {
         new Set(equipmentPackage.entries.map((item) => item.id)).size,
       ).toBe(equipmentPackage.entries.length)
       for (const item of equipmentPackage.entries) {
-        expect(['weapons', 'armor', 'vehicles', 'items']).toContain(item.kind)
+        expect([
+          'weapons',
+          'armor',
+          'vehicles',
+          'items',
+          'augmentations',
+        ]).toContain(item.kind)
         expect(item.name).toEqual(expect.any(String))
       }
     }
@@ -194,23 +202,14 @@ describe('starting equipment packages', () => {
     ).toHaveLength(2)
   })
 
-  it('offers an explicit custom record when Armory has no legal bionic item', () => {
-    const choice = startingEquipmentPackages['combat-cyborg'].entries.find(
-      (item) => item.id === 'bionic-weapons-tools',
-    ).choice
-    const entries = legalStartingEquipmentEntries(choice)
-    expect(entries).toHaveLength(1)
-    expect(entries[0]).toMatchObject({
-      name: 'Custom equipment choice',
-      metadata: { kind: 'weapons', customChoice: true },
-    })
+  it('creates separate managed augmentation choices for Combat Cyborg bionics', () => {
     const equipment = reconcileStartingEquipment(
       blankEquipment(),
       startingEquipmentPackages['combat-cyborg'],
       'combat-cyborg',
     )
     expect(
-      equipment.weapons.filter(
+      equipment.augmentations.filter(
         (item) =>
           item.choice?.rulePrompt === 'Choose four bionic weapons or tools',
       ),
@@ -245,6 +244,53 @@ describe('starting equipment packages', () => {
     expect(
       twice.weapons.find((item) => item.id === 'starting:juicer:ja11').name,
     ).toBe('Customized JA-11')
+  })
+
+  it('removes old generated packages while preserving user and customized records', () => {
+    const equipment = blankEquipment()
+    equipment.items.push(
+      {
+        id: 'starting:juicer:generated',
+        name: 'Old Juicer gear',
+        startingOrigin: 'juicer',
+      },
+      {
+        id: 'starting:juicer:customized',
+        name: 'Customized keepsake',
+        startingOrigin: 'juicer',
+        startingCustomized: true,
+      },
+      { id: 'user-item', name: 'Family keepsake' },
+    )
+
+    const cleaned = removeSupersededStartingEquipment(equipment)
+
+    expect(cleaned.items.map((item) => item.id)).toEqual([
+      'starting:juicer:customized',
+      'user-item',
+    ])
+  })
+
+  it('retains only the active class package when removing old MOS gear', () => {
+    const equipment = blankEquipment()
+    equipment.items.push(
+      {
+        id: 'starting:robot-pilot:class-gear',
+        startingOrigin: 'robot-pilot',
+      },
+      {
+        id: 'starting:robot-pilot:power-armor-pilot:mos-gear',
+        startingOrigin: 'robot-pilot:power-armor-pilot',
+      },
+    )
+
+    const cleaned = removeSupersededStartingEquipment(equipment, [
+      'robot-pilot',
+    ])
+
+    expect(cleaned.items).toEqual([
+      expect.objectContaining({ startingOrigin: 'robot-pilot' }),
+    ])
   })
 
   it('hydrates unambiguous class equipment from the shared Armory', () => {

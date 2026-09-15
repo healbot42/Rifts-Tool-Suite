@@ -32,12 +32,70 @@
 .watchlist-editor,
 .watchlist-list,
 .watchlist-catalog,
+.chair-settings,
 .watchlist-error {
   margin-top: 1.25rem;
   padding: 1.25rem;
   border: 1px solid #31537d;
   border-radius: 16px;
   background: #0f1d35;
+}
+
+.chair-settings {
+  margin-bottom: 1rem;
+}
+
+.chair-settings > header,
+.chair-settings form,
+.chair-recipient-add,
+.chair-recipient-list {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.chair-settings > header {
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.chair-settings h2,
+.chair-settings p {
+  margin: 0;
+}
+
+.chair-settings label,
+.chair-recipients {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.chair-settings input {
+  min-height: 2.5rem;
+}
+
+.chair-recipients {
+  flex: 1 1 22rem;
+}
+
+.chair-recipient-add input {
+  flex: 1;
+}
+
+.chair-recipient-list > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.chair-recipient-list button {
+  min-height: auto;
+  padding: 0.1rem 0.35rem;
 }
 .watchlist-layout {
   display: grid;

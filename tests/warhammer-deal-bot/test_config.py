@@ -22,6 +22,13 @@ def test_example_config_loads():
     assert config.email.max_deals_per_product == 3
     assert config.email.suspicious_discount_percent == 60
     assert config.products[0].purchased_quantity == 0
+    assert config.chairs.enabled is False
+    assert config.chairs.radius_miles == 20
+    assert [category.id for category in config.chairs.categories] == [
+        "office",
+        "lounge",
+        "casual",
+    ]
     ids = {product.id for product in config.products}
     assert {
         "mkiv-assault",

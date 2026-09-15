@@ -67,6 +67,31 @@ def test_credential_environment_names_cannot_be_redirected(monkeypatch):
         EbayAdapter({"client_secret_env": "UNRELATED_SECRET"}, httpx.Client())
 
 
+def test_local_search_uses_official_pickup_radius_filters(monkeypatch):
+    monkeypatch.setenv("EBAY_CLIENT_ID", "id")
+    monkeypatch.setenv("EBAY_CLIENT_SECRET", "secret")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["x-ebay-c-enduserctx"] == (
+            "contextualLocation=country=US,zip=60601"
+        )
+        assert request.url.params["sort"] == "distance"
+        filters = request.url.params["filter"]
+        assert "deliveryOptions:{SELLER_ARRANGED_LOCAL_PICKUP}" in filters
+        assert "pickupCountry:US" in filters
+        assert "pickupPostalCode:60601" in filters
+        assert "pickupRadius:20" in filters
+        assert "pickupRadiusUnit:mi" in filters
+        return httpx.Response(200, json={"itemSummaries": []})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        adapter = EbayAdapter({}, client)
+        adapter._token = "token"
+        assert adapter.query_local("office chair", "60601", 20) == {
+            "itemSummaries": []
+        }
+
+
 @pytest.mark.parametrize(
     "shipping",
     [[], [{}], [{"shippingCost": {"value": "0", "currency": "EUR"}}]],

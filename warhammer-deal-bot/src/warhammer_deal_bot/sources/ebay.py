@@ -69,6 +69,73 @@ class EbayAdapter(SourceAdapter):
         response.raise_for_status()
         return response.json()
 
+    def query_local(self, query: str, postal_code: str, radius_miles: int) -> dict[str, object]:
+        """Search seller-arranged local pickup inventory in an eBay-supported radius."""
+        filters = ",".join(
+            (
+                "deliveryOptions:{SELLER_ARRANGED_LOCAL_PICKUP}",
+                "pickupCountry:US",
+                f"pickupPostalCode:{postal_code}",
+                f"pickupRadius:{radius_miles}",
+                "pickupRadiusUnit:mi",
+            )
+        )
+        response = self.client.get(
+            f"{self.api_base}/buy/browse/v1/item_summary/search",
+            headers={
+                "Authorization": f"Bearer {self._access_token()}",
+                "X-EBAY-C-MARKETPLACE-ID": str(self.settings.get("marketplace", "EBAY_US")),
+                "X-EBAY-C-ENDUSERCTX": f"contextualLocation=country=US,zip={postal_code}",
+            },
+            params={
+                "q": query,
+                "limit": int(self.settings.get("limit_per_query", 50)),
+                "filter": filters,
+                "sort": "distance",
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def parse_local_item(self, item: dict[str, object], category_id: str) -> Listing | None:
+        """Normalize a local result without applying Warhammer product matching."""
+        title = str(item.get("title", "")).strip()
+        if not title:
+            return None
+        # Reuse the hardened price/URL parsing by supplying a permissive synthetic product.
+        product = Product(
+            id=category_id,
+            name=title,
+            aliases=[title],
+            queries=[title],
+            quantity_wanted=1,
+            msrp=Decimal("1"),
+        )
+        listing = self.parse_item(item, product)
+        if listing is None:
+            return None
+        distance = item.get("distanceFromPickupLocation")
+        if isinstance(distance, dict):
+            try:
+                listing.distance_miles = Decimal(str(distance.get("value")))
+            except (InvalidOperation, TypeError):
+                listing.distance_miles = None
+        delivery_options = item.get("deliveryOptions", [])
+        listing.local_pickup = "SELLER_ARRANGED_LOCAL_PICKUP" in delivery_options
+        if not listing.local_pickup:
+            listing.local_pickup = True  # The API query itself requires this delivery option.
+        location = item.get("itemLocation")
+        if isinstance(location, dict):
+            listing.location = (
+                ", ".join(
+                    str(location[key])
+                    for key in ("city", "stateOrProvince", "postalCode")
+                    if location.get(key)
+                )
+                or listing.location
+            )
+        return listing
+
     def search(self, product: Product) -> list[Listing]:
         found: dict[str, Listing] = {}
         for query in product.queries:

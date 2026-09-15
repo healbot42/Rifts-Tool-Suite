@@ -65,6 +65,8 @@ class Listing:
     raw: dict[str, Any] = field(default_factory=dict)
     image_url: str | None = None
     ends_at: datetime | None = None
+    distance_miles: Decimal | None = None
+    local_pickup: bool = False
 
     @property
     def delivered_price(self) -> Decimal:
@@ -85,3 +87,12 @@ class Deal:
         if not self.listing.quantity:
             return None
         return self.listing.delivered_price / self.listing.quantity
+
+
+@dataclass(slots=True)
+class ChairDeal:
+    """A qualifying local chair listing and its configured email section."""
+
+    category_id: str
+    category_name: str
+    listing: Listing

@@ -25,6 +25,7 @@ import {
   secondaryEligible,
 } from '../../../data/character/occs.js'
 import {
+  removeSupersededStartingEquipment,
   reconcileStartingEquipment,
   specializationEquipmentPackages,
   startingEquipmentPackages,
@@ -35,6 +36,11 @@ import {
   characterEquipmentCatalog,
   legalStartingEquipmentEntries,
 } from '../../../data/character/equipmentCatalog.js'
+import {
+  augmentationCatalog,
+  augmentationChoices,
+  augmentationsForChoice,
+} from '../../../data/character/augmentations.js'
 import {
   attributeDefinitions,
   attributeOrder,
@@ -198,7 +204,13 @@ const blank = () => ({
   skills: {},
   languages: { spoken: [], literacy: [] },
   classChoices: {},
-  equipment: { weapons: [], armor: [], vehicles: [], items: [] },
+  equipment: {
+    weapons: [],
+    armor: [],
+    vehicles: [],
+    items: [],
+    augmentations: [],
+  },
   spells: [],
   ownedAssets: [],
   play: {
@@ -222,10 +234,92 @@ const blank = () => ({
     notes: '',
   },
 })
+
+function importRecord(value, label) {
+  if (value == null) return {}
+  if (typeof value !== 'object' || Array.isArray(value))
+    throw new TypeError(`Invalid ${label}`)
+  return value
+}
+
+function importArray(value, label) {
+  if (value == null) return []
+  if (!Array.isArray(value)) throw new TypeError(`Invalid ${label}`)
+  return value
+}
+
+function prepareCharacterImport(imported) {
+  if (!imported || typeof imported !== 'object' || Array.isArray(imported))
+    throw new TypeError('Invalid character export')
+  const defaults = blank()
+  const languagesState = importRecord(imported.languages, 'languages')
+  const equipmentState = importRecord(imported.equipment, 'equipment')
+  const playState = importRecord(imported.play, 'play state')
+  const generationState = importRecord(
+    imported.attributeGeneration,
+    'attribute generation',
+  )
+  return {
+    ...defaults,
+    ...imported,
+    identity: {
+      ...defaults.identity,
+      ...importRecord(imported.identity, 'identity'),
+    },
+    attributes: {
+      ...defaults.attributes,
+      ...importRecord(imported.attributes, 'attributes'),
+    },
+    attributeGeneration: {
+      ...defaults.attributeGeneration,
+      ...generationState,
+      lowAssignments: importArray(
+        generationState.lowAssignments,
+        'low-attribute assignments',
+      ),
+    },
+    resources: {
+      ...defaults.resources,
+      ...importRecord(imported.resources, 'resources'),
+    },
+    combat: {
+      ...defaults.combat,
+      ...importRecord(imported.combat, 'combat bonuses'),
+    },
+    skills: importRecord(imported.skills, 'skills'),
+    languages: {
+      spoken: importArray(languagesState.spoken, 'spoken languages'),
+      literacy: importArray(languagesState.literacy, 'literacy languages'),
+    },
+    classChoices: importRecord(imported.classChoices, 'class choices'),
+    equipment: Object.fromEntries(
+      Object.keys(defaults.equipment).map((kind) => [
+        kind,
+        importArray(equipmentState[kind], `${kind} equipment`),
+      ]),
+    ),
+    spells: importArray(imported.spells, 'spells'),
+    ownedAssets: importArray(imported.ownedAssets, 'owned assets'),
+    play: {
+      ...defaults.play,
+      ...playState,
+      equipment: importRecord(playState.equipment, 'equipment status'),
+    },
+    notes: {
+      ...defaults.notes,
+      ...importRecord(imported.notes, 'notes'),
+    },
+    skillBonusRolls: importRecord(
+      imported.skillBonusRolls,
+      'skill bonus rolls',
+    ),
+  }
+}
 const state = reactive(blank())
 const mode = ref('edit')
 const attributeRollError = ref('')
 const equipmentCatalogOpen = ref(false)
+const catalogDomain = ref('equipment')
 const startingEquipmentChoiceTarget = ref(null)
 const equipmentDetail = ref(null)
 const equipmentDetailDialog = ref(null)
@@ -324,6 +418,30 @@ const equipmentSections = [
         'textarea',
         'Range, fuel, sensors, and special features',
       ],
+    ],
+  },
+  {
+    id: 'augmentations',
+    label: 'Bionics & Cybernetics',
+    singular: 'Augmentation',
+    description:
+      'Installed bionic and cybernetic features, senses, limbs, weapons, and tools.',
+    fields: [
+      ['name', 'Name', 'text', 'Bionic or cybernetic system name'],
+      [
+        'category',
+        'Category',
+        'text',
+        'Feature, sensory system, limb, weapon, or tool',
+      ],
+      ['location', 'Body location', 'text', 'Where the system is installed'],
+      [
+        'description',
+        'Rules / effect',
+        'textarea',
+        'Source-derived rules or effect',
+      ],
+      ['notes', 'Character notes', 'textarea', 'Character-specific notes'],
     ],
   },
   {
@@ -557,13 +675,63 @@ function startingChoicesFor(sectionId) {
     ({ section }) => section.id === sectionId,
   )
 }
+const augmentationPickerCatalog = computed(() => {
+  const choiceId =
+    startingEquipmentChoiceTarget.value?.item.choice?.augmentationChoiceId
+  let entries = choiceId
+    ? augmentationsForChoice(choiceId)
+    : augmentationCatalog
+  const packageChoice = augmentationChoices[choiceId]
+  if (!entries.length && packageChoice?.alternatives)
+    entries = packageChoice.alternatives.map((alternative) => ({
+      id: `package:${alternative.id}`,
+      name: alternative.label,
+      category: 'Starting Packages',
+      kind: 'package',
+      location: 'various',
+      description:
+        alternative.id === 'partial-conversion'
+          ? 'Use the Headhunter partial-conversion package on RUE page 77.'
+          : 'Choose 1D4+1 implants, one bionic limb, and two limb weapons or components.',
+      statistics: [],
+      source: alternative.source || packageChoice.source,
+    }))
+  return entries.map((entry) => ({
+    ...entry,
+    subcategory: entry.location || entry.kind,
+    options: [
+      {
+        id: 'quantity',
+        label: 'Quantity',
+        type: 'number',
+        required: true,
+        default: 1,
+      },
+      { id: 'notes', label: 'Character notes', type: 'text', default: '' },
+    ],
+    metadata: {
+      kind: 'augmentations',
+      defaults: {
+        category: entry.category,
+        location: entry.location || '',
+        description: entry.description,
+        statistics: entry.statistics || [],
+        source: entry.source?.book,
+        page: entry.source?.pages,
+      },
+    },
+  }))
+})
 const activeEquipmentCatalog = computed(() =>
-  startingEquipmentChoiceTarget.value
-    ? legalStartingEquipmentEntries(
-        startingEquipmentChoiceTarget.value.item.choice,
-        startingEquipmentChoiceTarget.value.section.id,
-      )
-    : characterEquipmentCatalog,
+  catalogDomain.value === 'augmentations' ||
+  startingEquipmentChoiceTarget.value?.item.choice?.augmentationChoiceId
+    ? augmentationPickerCatalog.value
+    : startingEquipmentChoiceTarget.value
+      ? legalStartingEquipmentEntries(
+          startingEquipmentChoiceTarget.value.item.choice,
+          startingEquipmentChoiceTarget.value.section.id,
+        )
+      : characterEquipmentCatalog,
 )
 const activeSpecialization = computed(() =>
   specializationById(activeOcc.value, state.classChoices.specialization?.id),
@@ -805,7 +973,9 @@ function addCatalogEquipment(selection) {
         ? selection.values.customName
         : selection.name,
       catalogSelectionId: selection.catalogId,
+      quantity: selection.values.quantity ?? item.quantity ?? 1,
       notes: selection.values.notes || item.notes || '',
+      startingCustomized: true,
     })
     if (!wasSelected) equipmentStatus(item).ammo = Number(item.ammoMax) || 0
     startingEquipmentChoiceTarget.value = null
@@ -822,14 +992,24 @@ function addCatalogEquipment(selection) {
 }
 function openEquipmentCatalog() {
   startingEquipmentChoiceTarget.value = null
+  catalogDomain.value = 'equipment'
+  equipmentCatalogOpen.value = true
+}
+function openAugmentationCatalog() {
+  startingEquipmentChoiceTarget.value = null
+  catalogDomain.value = 'augmentations'
   equipmentCatalogOpen.value = true
 }
 function openStartingEquipmentChoice(choice) {
   startingEquipmentChoiceTarget.value = choice
+  catalogDomain.value = choice.item.choice?.augmentationChoiceId
+    ? 'augmentations'
+    : 'equipment'
   equipmentCatalogOpen.value = true
 }
 function closeEquipmentCatalog() {
   startingEquipmentChoiceTarget.value = null
+  catalogDomain.value = 'equipment'
   equipmentCatalogOpen.value = false
 }
 function catalogStatistic(item, ...labels) {
@@ -897,6 +1077,9 @@ watch(
 function removeEquipment(kind, index) {
   const [item] = state.equipment[kind].splice(index, 1)
   if (item) delete state.play.equipment[item.id]
+}
+function markStartingEquipmentCustomized(item) {
+  if (item.startingOrigin) item.startingCustomized = true
 }
 function equipmentStatus(item) {
   const status = (state.play.equipment[item.id] ||= {})
@@ -1526,6 +1709,9 @@ function applySpecialization() {
     state.classChoices.specialization?.id,
   )
   state.classChoices.specialization = blankSpecializationState(option)
+  state.equipment = removeSupersededStartingEquipment(state.equipment, [
+    activeOcc.value?.id,
+  ])
   if (!option) return
   for (const [id, bonus] of option.automaticSkills) {
     setOccSkill(id, bonus)
@@ -1574,8 +1760,12 @@ function applyOcc() {
     (record) => !record.occId,
   )
   state.classChoices = {}
+  state.equipment = removeSupersededStartingEquipment(state.equipment)
   const occ = activeOcc.value
-  if (!occ) return
+  if (!occ) {
+    state.identity.occupation = ''
+    return
+  }
   state.play = {
     hp: null,
     sdc: null,
@@ -1634,6 +1824,8 @@ async function resetSheet() {
     return
   }
   Object.assign(state, blank())
+  mode.value = 'edit'
+  editTab.value = 'identity'
 }
 function downloadJson() {
   const blob = new Blob([JSON.stringify(state, null, 2)], {
@@ -1652,12 +1844,15 @@ function importJson(event) {
   const reader = new FileReader()
   reader.onload = () => {
     try {
-      Object.assign(state, blank(), JSON.parse(reader.result))
+      const imported = prepareCharacterImport(JSON.parse(reader.result))
+      Object.assign(state, imported)
       state.classChoices.specialization = normalizeSpecializationState(
         activeOcc.value,
         state.classChoices.specialization,
       )
       normalizeOccLanguageChoices()
+      refreshCatalogEquipment()
+      reconcileClassEquipment()
     } catch {
       alert('That file is not a valid character export.')
     }
@@ -2656,7 +2851,7 @@ watch(
             <output v-if="derived.mindControl"
               ><span>Save vs mind control</span
               ><strong>+{{ derived.mindControl }}</strong></output
-            ><output v-if="activeOcc.saveBonuses.disease"
+            ><output v-if="activeOcc?.saveBonuses.disease"
               ><span>Save vs disease</span
               ><strong>+{{ derived.disease }}</strong></output
             ><output v-if="derived.horrorFactor"
@@ -2752,7 +2947,7 @@ watch(
               </li>
             </ul></template
           >
-          <template v-if="activeOcc.situationalBonuses.length"
+          <template v-if="activeOcc?.situationalBonuses.length"
             ><h3>Situational class bonuses</h3>
             <ul class="situational-list">
               <li
@@ -3085,12 +3280,20 @@ watch(
         >
           <header class="equipment-editor-heading">
             <h2>Equipment</h2>
-            <button
-              type="button"
-              @click="openEquipmentCatalog"
-            >
-              Browse Armory
-            </button>
+            <div class="equipment-catalog-actions">
+              <button
+                type="button"
+                @click="openEquipmentCatalog"
+              >
+                Browse Armory
+              </button>
+              <button
+                type="button"
+                @click="openAugmentationCatalog"
+              >
+                Browse Bionics
+              </button>
+            </div>
           </header>
           <p>
             Add the equipment the character owns. Combat-use values such as
@@ -3231,6 +3434,7 @@ watch(
                       v-if="type === 'textarea'"
                       v-model="item[key]"
                       rows="2"
+                      @input="markStartingEquipmentCustomized(item)"
                     ></textarea
                     ><input
                       v-else
@@ -3238,6 +3442,7 @@ watch(
                       :type="type"
                       :min="type === 'number' ? 0 : undefined"
                       :required="key === 'name'"
+                      @input="markStartingEquipmentCustomized(item)"
                   /></label>
                 </div>
                 <div
@@ -3261,6 +3466,7 @@ watch(
                     <textarea
                       v-model="item.notes"
                       rows="2"
+                      @input="markStartingEquipmentCustomized(item)"
                     ></textarea>
                   </label>
                 </div>
@@ -3477,7 +3683,7 @@ watch(
             ><output v-if="derived.mindControl"
               ><span>Mind control</span
               ><strong>+{{ derived.mindControl }}</strong></output
-            ><output v-if="activeOcc.saveBonuses.disease"
+            ><output v-if="activeOcc?.saveBonuses.disease"
               ><span>Disease</span
               ><strong>+{{ derived.disease }}</strong></output
             ><output v-if="derived.horrorFactor"
@@ -3501,16 +3707,16 @@ watch(
           <h2>Languages</h2>
           <div class="play-skill-grid">
             <div
-              v-for="record in state.languages.spoken"
-              :key="'spoken-' + record.type"
+              v-for="(record, index) in state.languages.spoken"
+              :key="`spoken-${record.type}-${index}`"
               tabindex="0"
             >
               <span>Spoken: {{ record.type }}</span
               ><strong>{{ languageTotal('spoken', record) }}%</strong>
             </div>
             <div
-              v-for="record in state.languages.literacy"
-              :key="'literacy-' + record.type"
+              v-for="(record, index) in state.languages.literacy"
+              :key="`literacy-${record.type}-${index}`"
               tabindex="0"
             >
               <span>Literacy: {{ record.type }}</span
@@ -3563,7 +3769,7 @@ watch(
           >
             No trained skills.
           </p>
-          <template v-if="activeOcc.situationalBonuses.length"
+          <template v-if="activeOcc?.situationalBonuses.length"
             ><h3>Situational class bonuses</h3>
             <ul class="situational-list">
               <li
@@ -3933,7 +4139,10 @@ watch(
       :open="equipmentCatalogOpen"
       :entries="activeEquipmentCatalog"
       :title="
-        startingEquipmentChoiceTarget?.item.choice.prompt || 'Equipment Catalog'
+        startingEquipmentChoiceTarget?.item.choice.prompt ||
+        (catalogDomain === 'augmentations'
+          ? 'Bionics & Cybernetics'
+          : 'Equipment Catalog')
       "
       @close="closeEquipmentCatalog"
       @confirm="addCatalogEquipment"

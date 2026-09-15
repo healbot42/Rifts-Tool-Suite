@@ -51,6 +51,8 @@ async function ensureSchema(db) {
       PRIMARY KEY (owner_id, product_id))`),
     db.prepare(`CREATE INDEX IF NOT EXISTS watchlist_products_owner
       ON watchlist_products(owner_id, updated_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS chair_settings (
+      owner_id TEXT PRIMARY KEY, config_json TEXT NOT NULL, updated_at TEXT NOT NULL)`),
   ])
 }
 
@@ -202,6 +204,49 @@ function normalizeProduct(value) {
   return product
 }
 
+function normalizeChairSettings(value) {
+  if (!value || typeof value !== 'object')
+    throw new Error('Chair settings are required')
+  const postalCode = String(value.postal_code || '').trim()
+  const radius = Number(value.radius_miles ?? 20)
+  const recipients = normalizeStringList(value.recipients || []).map((email) =>
+    email.toLowerCase(),
+  )
+  const prices = value.max_prices || {}
+  const normalized = {
+    enabled: value.enabled === true,
+    postal_code: postalCode,
+    radius_miles: radius,
+    max_prices: {
+      office: Number(prices.office),
+      lounge: Number(prices.lounge),
+      casual: Number(prices.casual),
+    },
+    recipients,
+  }
+  if (!Number.isInteger(radius) || radius < 1 || radius > 100)
+    throw new Error('Radius must be between 1 and 100 miles')
+  if (normalized.enabled && !/^\d{5}(?:-\d{4})?$/.test(postalCode))
+    throw new Error('A valid US ZIP code is required')
+  if (normalized.enabled && recipients.length === 0)
+    throw new Error('Add at least one chair email recipient')
+  if (
+    Object.values(normalized.max_prices).some(
+      (price) => !Number.isFinite(price) || price < 0 || price > 100000,
+    )
+  )
+    throw new Error('Chair maximum prices must be non-negative')
+  if (
+    recipients.length > 20 ||
+    recipients.some(
+      (email) =>
+        email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+    )
+  )
+    throw new Error('Chair recipients must be valid email addresses')
+  return normalized
+}
+
 async function accessOwner(ctx) {
   if (!ctx?.access) return null
   const identity = await ctx.access.getIdentity()
@@ -213,6 +258,48 @@ async function watchlistRequest(request, env, ctx, url) {
   if (!owner)
     return json({ error: 'Cloudflare Access sign-in required' }, 403, request)
   await ensureSchema(env.DB)
+  if (url.pathname === '/v1/chair-settings' && request.method === 'GET') {
+    const row = await env.DB.prepare(
+      'SELECT config_json FROM chair_settings WHERE owner_id=?',
+    )
+      .bind(owner)
+      .first()
+    return json(
+      {
+        owner,
+        settings: row
+          ? JSON.parse(row.config_json)
+          : {
+              enabled: false,
+              postal_code: '',
+              radius_miles: 20,
+              max_prices: { office: 100, lounge: 100, casual: 100 },
+              recipients: [],
+            },
+      },
+      200,
+      request,
+    )
+  }
+  if (url.pathname === '/v1/chair-settings' && request.method === 'PUT') {
+    try {
+      const settings = normalizeChairSettings(await bodyJson(request))
+      await env.DB.prepare(
+        `INSERT INTO chair_settings(owner_id, config_json, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(owner_id) DO UPDATE SET config_json=excluded.config_json,
+         updated_at=excluded.updated_at`,
+      )
+        .bind(owner, JSON.stringify(settings), new Date().toISOString())
+        .run()
+      return json({ settings }, 200, request)
+    } catch (error) {
+      return json(
+        { error: error.message || 'Invalid chair settings' },
+        400,
+        request,
+      )
+    }
+  }
   if (request.method === 'GET' && url.pathname === '/v1/watchlist') {
     const result = await env.DB.prepare(
       `SELECT config_json FROM watchlist_products
@@ -277,7 +364,8 @@ async function handleRequest(request, env, ctx) {
   }
   if (
     url.pathname === '/v1/watchlist' ||
-    url.pathname.startsWith('/v1/watchlist/')
+    url.pathname.startsWith('/v1/watchlist/') ||
+    url.pathname === '/v1/chair-settings'
   ) {
     return watchlistRequest(request, env, ctx, url)
   }
@@ -308,6 +396,27 @@ async function handleRequest(request, env, ctx) {
       owner,
       products: result.results.map((row) => JSON.parse(row.config_json)),
     })
+  }
+
+  if (request.method === 'GET' && url.pathname === '/v1/bot/chair-settings') {
+    const owners = await env.DB.prepare(
+      'SELECT COUNT(*) AS count, MIN(owner_id) AS owner FROM chair_settings',
+    ).first()
+    if (Number(owners?.count || 0) === 0) return json({ settings: {} })
+    if (Number(owners.count) > 1 && !env.DEAL_BOT_OWNER)
+      return json(
+        { error: 'DEAL_BOT_OWNER is required when multiple owners exist' },
+        409,
+      )
+    const owner = String(env.DEAL_BOT_OWNER || owners.owner)
+      .trim()
+      .toLowerCase()
+    const row = await env.DB.prepare(
+      'SELECT config_json FROM chair_settings WHERE owner_id=?',
+    )
+      .bind(owner)
+      .first()
+    return json({ owner, settings: row ? JSON.parse(row.config_json) : {} })
   }
 
   if (request.method === 'GET' && url.pathname === '/v1/history') {

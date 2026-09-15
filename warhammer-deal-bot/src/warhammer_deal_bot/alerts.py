@@ -10,7 +10,7 @@ from email.message import EmailMessage
 
 from .config import EmailConfig
 from .matching import normalize
-from .models import Deal
+from .models import ChairDeal, Deal
 from .security import validate_https_url
 
 SMTP_HOST = "smtp.gmail.com"
@@ -165,8 +165,14 @@ def format_digest(
     return subject, "\n\n".join(text_parts), "".join(html_parts)
 
 
-def send_email(config: EmailConfig, subject: str, text: str, html_body: str) -> None:
-    recipient = os.environ.get(SMTP_RECIPIENT_ENV)
+def send_email(
+    config: EmailConfig,
+    subject: str,
+    text: str,
+    html_body: str,
+    recipients: list[str] | None = None,
+) -> None:
+    recipient = ", ".join(recipients) if recipients else os.environ.get(SMTP_RECIPIENT_ENV)
     if not recipient:
         raise ValueError("Set DEAL_BOT_EMAIL_TO to the alert recipient")
     message = EmailMessage()
@@ -195,3 +201,67 @@ def send_email(config: EmailConfig, subject: str, text: str, html_body: str) -> 
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=30, context=tls_context) as smtp:
         smtp.login(sender, password)
         smtp.send_message(message)
+
+
+def format_chair_digest(deals: list[ChairDeal]) -> tuple[str, str, str]:
+    """Render the three required chair sections, including empty sections."""
+    from datetime import date
+
+    sections = (
+        ("office", "OFFICE CHAIRS"),
+        ("lounge", "UPHOLSTERED / LOUNGE CHAIRS"),
+        ("casual", "PAPASAN / CASUAL CHAIRS"),
+    )
+    subject = f"Local Chair Deals – {date.today().isoformat()}"
+    text_parts = [subject]
+    html_parts = ["<html><body>", f"<h1>{html.escape(subject)}</h1>"]
+    for category_id, heading in sections:
+        section = [deal for deal in deals if deal.category_id == category_id]
+        section.sort(
+            key=lambda deal: (
+                deal.listing.delivered_price,
+                deal.listing.distance_miles
+                if deal.listing.distance_miles is not None
+                else Decimal("Infinity"),
+            )
+        )
+        text_parts.append(heading)
+        html_parts.append(f"<h2>{html.escape(heading)}</h2>")
+        if not section:
+            text_parts.append("No qualifying deals found.")
+            html_parts.append("<p>No qualifying deals found.</p>")
+            continue
+        for deal in section:
+            listing = deal.listing
+            url = _safe_url(listing.url, listing.source)
+            distance = (
+                f"{listing.distance_miles} miles"
+                if listing.distance_miles is not None
+                else "within configured radius"
+            )
+            rating = (
+                str(listing.seller_rating) if listing.seller_rating is not None else "not available"
+            )
+            lines = [
+                listing.title,
+                f"Item: ${listing.item_price}; shipping: ${listing.shipping_price}; "
+                f"total: ${listing.delivered_price}",
+                f"Condition: {listing.condition.value}; distance: {distance}",
+                f"Local pickup: {'yes' if listing.local_pickup else 'no'}; seller rating: {rating}",
+                url,
+            ]
+            text_parts.append("\n".join(lines))
+            html_parts.append(
+                "<section>"
+                + (
+                    f'<img src="{html.escape(listing.image_url, quote=True)}" '
+                    'alt="" width="180" loading="lazy">'
+                    if listing.image_url
+                    else ""
+                )
+                + f"<h3>{html.escape(listing.title)}</h3><p>"
+                + "<br>".join(html.escape(line) for line in lines[1:-1])
+                + f'</p><p><a href="{html.escape(url, quote=True)}">View listing</a></p></section>'
+            )
+    html_parts.append("</body></html>")
+    return subject, "\n\n".join(text_parts), "".join(html_parts)

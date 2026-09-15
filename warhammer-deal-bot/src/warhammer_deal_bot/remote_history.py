@@ -61,6 +61,16 @@ class RemoteHistory:
             raise ValueError("Remote watchlist products must be a list")
         return products
 
+    def chair_settings(self) -> dict[str, Any]:
+        if not self.enabled:
+            return {}
+        response = self.client.get(f"{self.url}/v1/bot/chair-settings", headers=self.headers)
+        response.raise_for_status()
+        settings = response.json().get("settings", {})
+        if not isinstance(settings, dict):
+            raise ValueError("Remote chair settings must be an object")
+        return settings
+
     def store(self, listings: list[Listing]) -> None:
         if not self.enabled:
             return

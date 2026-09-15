@@ -12,6 +12,17 @@ email:
   max_deals_per_product: 3
   suspicious_discount_percent: 60
 
+# The protected Deal Watchlist UI can override these values for scheduled runs.
+chairs:
+  enabled: false
+  postal_code: ''
+  radius_miles: 20
+  recipients: []
+  max_prices:
+    office: 100
+    lounge: 100
+    casual: 100
+
 sources:
   ebay:
     enabled: true

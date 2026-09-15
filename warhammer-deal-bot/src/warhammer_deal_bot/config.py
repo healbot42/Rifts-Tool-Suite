@@ -9,6 +9,40 @@ import yaml
 
 from .models import Condition, Product
 
+CHAIR_CATEGORIES = {
+    "office": (
+        "OFFICE CHAIRS",
+        [
+            "office chair",
+            "desk chair",
+            "task chair",
+            "executive chair",
+            "ergonomic chair",
+            "mesh office chair",
+            "high back office chair",
+            "reclining office chair",
+        ],
+    ),
+    "lounge": (
+        "UPHOLSTERED / LOUNGE CHAIRS",
+        [
+            "accent chair",
+            "upholstered chair",
+            "armchair",
+            "occasional chair",
+            "reading chair",
+            "wingback chair",
+            "wing chair",
+            "tufted chair",
+            "club chair",
+        ],
+    ),
+    "casual": (
+        "PAPASAN / CASUAL CHAIRS",
+        ["papasan chair", "saucer chair", "moon chair", "bowl chair"],
+    ),
+}
+
 
 @dataclass(slots=True)
 class EmailConfig:
@@ -20,6 +54,23 @@ class EmailConfig:
 
 
 @dataclass(slots=True)
+class ChairCategoryConfig:
+    id: str
+    name: str
+    terms: list[str]
+    max_price: Decimal
+
+
+@dataclass(slots=True)
+class ChairConfig:
+    enabled: bool = False
+    postal_code: str = ""
+    radius_miles: int = 20
+    recipients: list[str] = field(default_factory=list)
+    categories: list[ChairCategoryConfig] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class AppConfig:
     database: Path
     products: list[Product]
@@ -28,6 +79,7 @@ class AppConfig:
     price_drop_realert: Decimal = Decimal("5")
     reappeared_realert: bool = True
     request_delay_seconds: tuple[float, float] = (1.0, 3.0)
+    chairs: ChairConfig = field(default_factory=ChairConfig)
 
 
 def _money(value: Any) -> Decimal | None:
@@ -177,6 +229,33 @@ def load_config(path: str | Path) -> AppConfig:
     if not Decimal("0") <= email.suspicious_discount_percent <= Decimal("100"):
         raise ValueError("Suspicious discount percent must be between 0 and 100")
     delay = data.get("request_delay_seconds", [1, 3])
+    chair_data = data.get("chairs", {})
+    category_prices = chair_data.get("max_prices", {})
+    chair_categories = [
+        ChairCategoryConfig(
+            id=category_id,
+            name=name,
+            terms=[str(term) for term in chair_data.get("terms", {}).get(category_id, terms)],
+            max_price=Decimal(str(category_prices.get(category_id, 100))),
+        )
+        for category_id, (name, terms) in CHAIR_CATEGORIES.items()
+    ]
+    radius = int(chair_data.get("radius_miles", 20))
+    postal_code = str(chair_data.get("postal_code", "")).strip()
+    recipients = [
+        str(value).strip() for value in chair_data.get("recipients", []) if str(value).strip()
+    ]
+    if radius < 1 or radius > 100:
+        raise ValueError("Chair radius must be between 1 and 100 miles")
+    if bool(chair_data.get("enabled", False)) and not postal_code:
+        raise ValueError("Chair monitoring requires a postal_code")
+    if bool(chair_data.get("enabled", False)) and not recipients:
+        raise ValueError("Chair monitoring requires at least one recipient")
+    if any(
+        not category.max_price.is_finite() or category.max_price < 0
+        for category in chair_categories
+    ):
+        raise ValueError("Chair maximum prices must be finite and non-negative")
     database_value = Path(str(data.get("database", "data/deals.sqlite3")))
     if database_value.is_absolute() or PureWindowsPath(str(database_value)).is_absolute():
         raise ValueError("Database path must be relative to the configuration directory")
@@ -191,4 +270,11 @@ def load_config(path: str | Path) -> AppConfig:
         price_drop_realert=Decimal(str(data.get("price_drop_realert", 5))),
         reappeared_realert=bool(data.get("reappeared_realert", True)),
         request_delay_seconds=(float(delay[0]), float(delay[1])),
+        chairs=ChairConfig(
+            enabled=bool(chair_data.get("enabled", False)),
+            postal_code=postal_code,
+            radius_miles=radius,
+            recipients=recipients,
+            categories=chair_categories,
+        ),
     )

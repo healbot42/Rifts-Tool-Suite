@@ -31,4 +31,13 @@ describe('Rifts data API', () => {
       error: 'Cloudflare Access sign-in required',
     })
   })
+
+  it('requires a Cloudflare Access identity for chair settings', async () => {
+    const response = await handleRequest(
+      new Request('https://rifts-data-api.example/v1/chair-settings'),
+      {},
+      {},
+    )
+    expect(response.status).toBe(403)
+  })
 })

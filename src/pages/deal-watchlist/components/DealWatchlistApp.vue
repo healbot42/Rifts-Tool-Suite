@@ -15,6 +15,14 @@ const error = ref('')
 const busy = ref(false)
 const editingId = ref(null)
 const editorOpen = ref(false)
+const chairSettings = reactive({
+  enabled: false,
+  postal_code: '',
+  radius_miles: 20,
+  max_prices: { office: 100, lounge: 100, casual: 100 },
+  recipients: [],
+})
+const chairRecipient = ref('')
 const CATALOG_PAGE_SIZES = [12, 24, 48, 96]
 const catalogPageSize = ref(CATALOG_PAGE_SIZES[0])
 const catalogPage = ref(1)
@@ -181,9 +189,33 @@ async function load() {
   busy.value = true
   error.value = ''
   try {
-    const result = await watchlistApi.list()
+    const [result, chairResult] = await Promise.all([
+      watchlistApi.list(),
+      watchlistApi.chairSettings(),
+    ])
     products.value = result.products
     owner.value = result.owner
+    Object.assign(chairSettings, chairResult.settings)
+  } catch (cause) {
+    error.value = cause.message
+  } finally {
+    busy.value = false
+  }
+}
+
+function addChairRecipient() {
+  const value = chairRecipient.value.trim().toLowerCase()
+  if (value && !chairSettings.recipients.includes(value))
+    chairSettings.recipients.push(value)
+  chairRecipient.value = ''
+}
+
+async function saveChairSettings() {
+  busy.value = true
+  error.value = ''
+  try {
+    const result = await watchlistApi.saveChairSettings(chairSettings)
+    Object.assign(chairSettings, result.settings)
   } catch (cause) {
     error.value = cause.message
   } finally {
@@ -284,6 +316,109 @@ onMounted(load)
     >
       Signed in as {{ owner }}
     </p>
+
+    <section class="chair-settings">
+      <header>
+        <div>
+          <p class="eyebrow">Local eBay alerts</p>
+          <h2>Chair Deals</h2>
+        </div>
+        <label class="toggle">
+          <input
+            v-model="chairSettings.enabled"
+            type="checkbox"
+          />
+          <span>Monitor chairs</span>
+        </label>
+      </header>
+      <form @submit.prevent="saveChairSettings">
+        <label
+          ><span>ZIP code</span
+          ><input
+            v-model="chairSettings.postal_code"
+            inputmode="numeric"
+        /></label>
+        <label
+          ><span>Radius (miles)</span
+          ><input
+            v-model.number="chairSettings.radius_miles"
+            type="number"
+            min="1"
+            max="100"
+        /></label>
+        <label
+          ><span>Office max ($)</span
+          ><input
+            v-model.number="chairSettings.max_prices.office"
+            type="number"
+            min="0"
+            step="0.01"
+        /></label>
+        <label
+          ><span>Upholstered / lounge max ($)</span
+          ><input
+            v-model.number="chairSettings.max_prices.lounge"
+            type="number"
+            min="0"
+            step="0.01"
+        /></label>
+        <label
+          ><span>Papasan / casual max ($)</span
+          ><input
+            v-model.number="chairSettings.max_prices.casual"
+            type="number"
+            min="0"
+            step="0.01"
+        /></label>
+        <div class="chair-recipients">
+          <span>Chair email recipients</span>
+          <div class="chair-recipient-add">
+            <input
+              v-model="chairRecipient"
+              type="email"
+              placeholder="name@example.com"
+              @keydown.enter.prevent="addChairRecipient"
+            />
+            <button
+              type="button"
+              class="secondary"
+              @click="addChairRecipient"
+            >
+              Add
+            </button>
+          </div>
+          <div
+            v-if="chairSettings.recipients.length"
+            class="chair-recipient-list"
+          >
+            <span
+              v-for="recipient in chairSettings.recipients"
+              :key="recipient"
+            >
+              {{ recipient }}
+              <button
+                type="button"
+                class="secondary"
+                :aria-label="`Remove ${recipient}`"
+                @click="
+                  chairSettings.recipients = chairSettings.recipients.filter(
+                    (value) => value !== recipient,
+                  )
+                "
+              >
+                &times;
+              </button>
+            </span>
+          </div>
+        </div>
+        <button
+          :disabled="busy"
+          type="submit"
+        >
+          Save chair settings
+        </button>
+      </form>
+    </section>
 
     <div class="watchlist-layout">
       <section class="watchlist-catalog">

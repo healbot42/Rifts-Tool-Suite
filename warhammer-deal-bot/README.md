@@ -366,6 +366,20 @@ patterns. These controls reduce risk but do not replace protecting the
 workstation, limiting GitHub access, or rotating a credential immediately if it
 is exposed.
 
+## Local chair monitoring
+
+The scheduled `run` command completes the existing Warhammer scan and email
+before running a separate local-chair scan when Chair Deals is enabled. Chair
+settings (ZIP code, radius, category maximums, and a separate recipient list)
+are managed from the suite's protected **Deal Watchlist** page. The YAML
+`chairs` block provides defaults until remote settings have been saved.
+
+Chair searches use the official eBay Browse API local-pickup radius filters.
+Listings are deduplicated by eBay item ID across every search term, screened for
+parts and accessories, compared against the category maximum using item price
+plus shipping, and checked against the existing alert history before a separate
+chair digest is sent.
+
 ## Sample email
 
 ```text
