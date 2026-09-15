@@ -34,10 +34,34 @@ describe('Rifts data API', () => {
 
   it('requires a Cloudflare Access identity for chair settings', async () => {
     const response = await handleRequest(
-      new Request('https://rifts-data-api.example/v1/chair-settings'),
+      new Request('https://rifts-data-api.example/v1/watchlist/chair-settings'),
       {},
       {},
     )
     expect(response.status).toBe(403)
+  })
+
+  it('recognizes the identity header supplied by path-based Cloudflare Access', async () => {
+    const response = await handleRequest(
+      new Request('https://rifts-data-api.example/v1/watchlist', {
+        headers: {
+          'Cf-Access-Authenticated-User-Email': 'Owner@Example.com',
+        },
+      }),
+      {
+        DB: {
+          batch: async () => {},
+          prepare: () => ({
+            bind: () => ({ all: async () => ({ results: [] }) }),
+          }),
+        },
+      },
+      {},
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      owner: 'owner@example.com',
+      products: [],
+    })
   })
 })

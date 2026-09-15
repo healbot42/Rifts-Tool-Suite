@@ -247,18 +247,26 @@ function normalizeChairSettings(value) {
   return normalized
 }
 
-async function accessOwner(ctx) {
-  if (!ctx?.access) return null
-  const identity = await ctx.access.getIdentity()
-  return identity?.email ? String(identity.email).trim().toLowerCase() : null
+async function accessOwner(request, ctx) {
+  if (ctx?.access) {
+    const identity = await ctx.access.getIdentity()
+    if (identity?.email) return String(identity.email).trim().toLowerCase()
+  }
+  const accessEmail = request.headers.get('cf-access-authenticated-user-email')
+  return accessEmail ? accessEmail.trim().toLowerCase() : null
 }
 
 async function watchlistRequest(request, env, ctx, url) {
-  const owner = await accessOwner(ctx)
+  // These browser routes must remain under /v1/watchlist*, the path protected
+  // by the Cloudflare Access application that injects the identity header.
+  const owner = await accessOwner(request, ctx)
   if (!owner)
     return json({ error: 'Cloudflare Access sign-in required' }, 403, request)
   await ensureSchema(env.DB)
-  if (url.pathname === '/v1/chair-settings' && request.method === 'GET') {
+  if (
+    url.pathname === '/v1/watchlist/chair-settings' &&
+    request.method === 'GET'
+  ) {
     const row = await env.DB.prepare(
       'SELECT config_json FROM chair_settings WHERE owner_id=?',
     )
@@ -281,7 +289,10 @@ async function watchlistRequest(request, env, ctx, url) {
       request,
     )
   }
-  if (url.pathname === '/v1/chair-settings' && request.method === 'PUT') {
+  if (
+    url.pathname === '/v1/watchlist/chair-settings' &&
+    request.method === 'PUT'
+  ) {
     try {
       const settings = normalizeChairSettings(await bodyJson(request))
       await env.DB.prepare(
@@ -364,8 +375,7 @@ async function handleRequest(request, env, ctx) {
   }
   if (
     url.pathname === '/v1/watchlist' ||
-    url.pathname.startsWith('/v1/watchlist/') ||
-    url.pathname === '/v1/chair-settings'
+    url.pathname.startsWith('/v1/watchlist/')
   ) {
     return watchlistRequest(request, env, ctx, url)
   }

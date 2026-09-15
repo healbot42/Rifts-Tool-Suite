@@ -16,7 +16,7 @@ describe('deal watchlist API client', () => {
     await watchlistApi.saveChairSettings({ enabled: true })
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      `${WATCHLIST_API}/v1/chair-settings`,
+      `${WATCHLIST_API}/v1/watchlist/chair-settings`,
       {
         credentials: 'include',
         headers: {},
@@ -24,7 +24,7 @@ describe('deal watchlist API client', () => {
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      `${WATCHLIST_API}/v1/chair-settings`,
+      `${WATCHLIST_API}/v1/watchlist/chair-settings`,
       {
         credentials: 'include',
         method: 'PUT',

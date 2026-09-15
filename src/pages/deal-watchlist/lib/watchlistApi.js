@@ -23,9 +23,9 @@ export const watchlistApi = {
     }),
   remove: (id) =>
     request(`/v1/watchlist/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  chairSettings: () => request('/v1/chair-settings'),
+  chairSettings: () => request('/v1/watchlist/chair-settings'),
   saveChairSettings: (settings) =>
-    request('/v1/chair-settings', {
+    request('/v1/watchlist/chair-settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
     }),
