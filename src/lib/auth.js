@@ -28,10 +28,5 @@ export function beginAuthentication() {
 }
 
 export function logout() {
-  const url = new URL(`${DATA_API}/v1/watchlist/logout`)
-  url.searchParams.set(
-    'return_to',
-    `${window.location.origin}${window.location.pathname}`,
-  )
-  window.location.assign(url.href)
+  window.location.assign(`${DATA_API}/v1/watchlist/logout`)
 }

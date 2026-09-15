@@ -379,10 +379,10 @@ async function watchlistRequest(request, env, ctx, url) {
     return json({ user }, 200, request)
   }
   if (url.pathname === '/v1/watchlist/logout' && request.method === 'GET') {
-    const destination = safeAppReturn(url) || 'https://healbot42.github.io/'
-    const logout = new URL('/cdn-cgi/access/logout', url.origin)
-    logout.searchParams.set('returnTo', destination)
-    return Response.redirect(logout.href, 302)
+    return Response.redirect(
+      new URL('/cdn-cgi/access/logout', url.origin).href,
+      302,
+    )
   }
   if (
     url.pathname === '/v1/watchlist/chair-settings' &&

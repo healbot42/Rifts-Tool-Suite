@@ -51,6 +51,8 @@ describe('shared authentication client', () => {
     expect(assign.mock.calls[0][0]).toContain('/v1/watchlist/session?')
     expect(assign.mock.calls[0][0]).toContain('initiative-tracker')
     logout()
-    expect(assign.mock.calls[1][0]).toContain('/v1/watchlist/logout?')
+    expect(assign.mock.calls[1][0]).toBe(
+      'https://rifts-data-api.zhawkins42.workers.dev/v1/watchlist/logout',
+    )
   })
 })
