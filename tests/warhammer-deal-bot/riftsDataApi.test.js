@@ -33,7 +33,7 @@ describe('Rifts data API', () => {
     await expect(storeObservations(db, [observation], now)).resolves.toBe(1)
     expect(batches).toHaveLength(1)
     expect(batches[0][0]).toEqual({
-      sql: 'DELETE FROM deal_observations WHERE observed_at < ?',
+      sql: 'DELETE FROM deal_observations WHERE julianday(observed_at) < julianday(?)',
       values: ['2026-08-16T12:00:00.000Z'],
     })
     expect(batches[0][1].sql).toContain('INSERT INTO deal_observations')

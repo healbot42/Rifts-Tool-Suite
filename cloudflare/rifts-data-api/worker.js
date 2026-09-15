@@ -164,7 +164,9 @@ async function storeObservations(db, rows, now = new Date()) {
       ),
   )
   const prune = db
-    .prepare('DELETE FROM deal_observations WHERE observed_at < ?')
+    .prepare(
+      'DELETE FROM deal_observations WHERE julianday(observed_at) < julianday(?)',
+    )
     .bind(observationRetentionCutoff(now))
   await db.batch([prune, ...inserts])
   return inserts.length
