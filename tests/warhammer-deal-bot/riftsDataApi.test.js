@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   handleRequest,
   observationRetentionCutoff,
+  pruneObservations,
   storeObservations,
 } from '../../cloudflare/rifts-data-api/worker.js'
 
@@ -32,11 +33,42 @@ describe('Rifts data API', () => {
     expect(observationRetentionCutoff(now)).toBe('2026-08-16T12:00:00.000Z')
     await expect(storeObservations(db, [observation], now)).resolves.toBe(1)
     expect(batches).toHaveLength(1)
-    expect(batches[0][0]).toEqual({
-      sql: 'DELETE FROM deal_observations WHERE julianday(observed_at) < julianday(?)',
-      values: ['2026-08-16T12:00:00.000Z'],
-    })
-    expect(batches[0][1].sql).toContain('INSERT INTO deal_observations')
+    expect(batches[0]).toHaveLength(1)
+    expect(batches[0][0].sql).toContain('INSERT INTO deal_observations')
+  })
+
+  it('accepts an empty observation upload without issuing an empty batch', async () => {
+    const db = {
+      prepare: () => {
+        throw new Error('No statement expected')
+      },
+      batch: () => {
+        throw new Error('No batch expected')
+      },
+    }
+
+    await expect(storeObservations(db, [])).resolves.toBe(0)
+  })
+
+  it('prunes expired observations once per explicit prune request', async () => {
+    const statements = []
+    const db = {
+      prepare: (sql) => ({
+        bind(...values) {
+          statements.push({ sql, values })
+          return { run: async () => ({ meta: { changes: 3 } }) }
+        },
+      }),
+    }
+    const now = new Date('2026-09-15T12:00:00.000Z')
+
+    await expect(pruneObservations(db, now)).resolves.toBe(3)
+    expect(statements).toEqual([
+      {
+        sql: 'DELETE FROM deal_observations WHERE julianday(observed_at) < julianday(?)',
+        values: ['2026-08-16T12:00:00.000Z'],
+      },
+    ])
   })
 
   it('exposes a public health check without database access', async () => {

@@ -96,3 +96,10 @@ class RemoteHistory:
                 json={"observations": rows[offset : offset + 100]},
             )
             response.raise_for_status()
+
+    def prune(self) -> None:
+        """Remove expired remote observations once after a complete scan."""
+        if not self.enabled:
+            return
+        response = self.client.post(f"{self.url}/v1/observations/prune", headers=self.headers)
+        response.raise_for_status()

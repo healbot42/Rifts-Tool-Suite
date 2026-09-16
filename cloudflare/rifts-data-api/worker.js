@@ -48,6 +48,8 @@ async function ensureSchema(db) {
       PRIMARY KEY (source, source_listing_id, observed_at))`),
     db.prepare(`CREATE INDEX IF NOT EXISTS deal_observations_product_time
       ON deal_observations(product_id, observed_at)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS deal_observations_observed_at_jd
+      ON deal_observations(julianday(observed_at))`),
     db.prepare(`CREATE TABLE IF NOT EXISTS purchases (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       product_id TEXT NOT NULL, quantity INTEGER NOT NULL DEFAULT 0,
@@ -138,7 +140,7 @@ function observationRetentionCutoff(now = new Date()) {
   ).toISOString()
 }
 
-async function storeObservations(db, rows, now = new Date()) {
+async function storeObservations(db, rows) {
   const inserts = rows.map((row) =>
     db
       .prepare(
@@ -163,13 +165,19 @@ async function storeObservations(db, rows, now = new Date()) {
         row.available === false ? 0 : 1,
       ),
   )
-  const prune = db
+  if (inserts.length === 0) return 0
+  await db.batch(inserts)
+  return inserts.length
+}
+
+async function pruneObservations(db, now = new Date()) {
+  const result = await db
     .prepare(
       'DELETE FROM deal_observations WHERE julianday(observed_at) < julianday(?)',
     )
     .bind(observationRetentionCutoff(now))
-  await db.batch([prune, ...inserts])
-  return inserts.length
+    .run()
+  return result.meta?.changes ?? 0
 }
 
 function normalizeStringList(value) {
@@ -572,6 +580,11 @@ async function handleRequest(request, env, ctx) {
     return json({ stored })
   }
 
+  if (request.method === 'POST' && url.pathname === '/v1/observations/prune') {
+    const pruned = await pruneObservations(env.DB)
+    return json({ pruned })
+  }
+
   if (request.method === 'GET' && url.pathname === '/v1/purchases') {
     let user
     try {
@@ -622,5 +635,10 @@ async function handleRequest(request, env, ctx) {
   return json({ error: 'Not found' }, 404)
 }
 
-export { handleRequest, observationRetentionCutoff, storeObservations }
+export {
+  handleRequest,
+  observationRetentionCutoff,
+  pruneObservations,
+  storeObservations,
+}
 export default { fetch: handleRequest }

@@ -44,10 +44,12 @@ def test_remote_history_reads_purchases_and_batches_observations(monkeypatch):
                 )
             ]
         )
+        remote.prune()
     assert [request.url.path for request in requests] == [
         "/v1/purchases",
         "/v1/history",
         "/v1/observations",
+        "/v1/observations/prune",
     ]
 
 
@@ -57,7 +59,9 @@ def test_remote_history_stays_disabled_without_both_settings(monkeypatch):
         "DATA_API_URL", "https://rifts-data-api.zhawkins42.workers.dev"
     )
     with httpx.Client() as client:
-        assert not RemoteHistory(client).enabled
+        remote = RemoteHistory(client)
+        assert not remote.enabled
+        remote.prune()
 
 
 def test_remote_watchlist_uses_machine_authenticated_endpoint(monkeypatch):

@@ -48,3 +48,36 @@ def test_user_account_migration_preserves_legacy_deal_bot_data():
     assert connection.execute(
         "SELECT version FROM schema_migrations WHERE version=2"
     ).fetchone() == (2,)
+
+
+def test_observation_retention_migration_adds_timestamp_index():
+    connection = sqlite3.connect(":memory:")
+    connection.executescript(
+        """
+        CREATE TABLE schema_migrations (
+          version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+        CREATE TABLE deal_observations (
+          observed_at TEXT NOT NULL);
+        """
+    )
+    migration = (
+        Path(__file__).parents[2]
+        / "cloudflare"
+        / "rifts-data-api"
+        / "migrations"
+        / "0003-observation-retention-index.sql"
+    ).read_text(encoding="utf-8")
+    connection.executescript(migration)
+
+    query_plan = connection.execute(
+        """EXPLAIN QUERY PLAN DELETE FROM deal_observations
+        WHERE julianday(observed_at) < julianday(?)""",
+        ("2026-08-16T12:00:00.000Z",),
+    ).fetchall()
+    assert any(
+        "deal_observations_observed_at_jd" in detail
+        for *_, detail in query_plan
+    )
+    assert connection.execute(
+        "SELECT version FROM schema_migrations WHERE version=3"
+    ).fetchone() == (3,)

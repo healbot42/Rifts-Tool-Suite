@@ -130,6 +130,10 @@ def run(
             except Exception as error:
                 database.finish_source_run(run_id, returned, accepted, str(error))
                 LOGGER.exception("source=%s failed; continuing with remaining sources", name)
+        try:
+            remote_history.prune()
+        except httpx.HTTPError:
+            LOGGER.exception("D1 history pruning failed")
     deal_values = [deal for _, deal in deals]
     if deal_values and config.email.enabled:
         subject, text_body, html_body = format_digest(
