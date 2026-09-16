@@ -8,31 +8,6 @@ import {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('deal watchlist API client', () => {
-  it('loads and saves chair settings separately', async () => {
-    const fetchMock = vi.fn()
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) })
-    vi.stubGlobal('fetch', fetchMock)
-    await watchlistApi.chairSettings()
-    await watchlistApi.saveChairSettings({ enabled: true })
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      `${WATCHLIST_API}/v1/watchlist/chair-settings`,
-      {
-        credentials: 'include',
-        headers: {},
-      },
-    )
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      `${WATCHLIST_API}/v1/watchlist/chair-settings`,
-      {
-        credentials: 'include',
-        method: 'PUT',
-        body: JSON.stringify({ enabled: true }),
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
-  })
   it('sends browser credentials when saving a product', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ product: { id: 'possessed' } }), {

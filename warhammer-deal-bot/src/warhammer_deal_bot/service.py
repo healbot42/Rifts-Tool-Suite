@@ -18,17 +18,6 @@ from .sources import RETAILER_ADAPTERS, EbayAdapter, SourceAdapter
 LOGGER = logging.getLogger(__name__)
 
 
-def _run_chairs(config: AppConfig, filtered: bool) -> None:
-    if filtered:
-        return
-    try:
-        from .chairs import run_chair_search
-
-        run_chair_search(config)
-    except Exception:
-        LOGGER.exception("chair workflow failed after Warhammer processing")
-
-
 def _adapter(name: str, settings: dict[str, object], client: httpx.Client) -> SourceAdapter:
     if name == "ebay":
         return EbayAdapter(settings, client)
@@ -76,7 +65,6 @@ def run(
     ]
     if not products:
         LOGGER.info("all selected product quantities have been purchased")
-        _run_chairs(config, source_filter is not None or product_filter is not None)
         return []
     for product in products:
         database.sync_product(product.id, product.name, asdict(product))
@@ -144,5 +132,4 @@ def run(
         send_email(config.email, subject, text_body, html_body)
         for listing_id, deal in deals:
             database.record_alert(listing_id, deal.listing.delivered_price, "; ".join(deal.reasons))
-    _run_chairs(config, source_filter is not None or product_filter is not None)
     return deal_values
