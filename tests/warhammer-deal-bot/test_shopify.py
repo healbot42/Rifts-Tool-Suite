@@ -1,3 +1,5 @@
+from collections import Counter
+from dataclasses import replace
 from decimal import Decimal
 
 import httpx
@@ -58,6 +60,77 @@ def test_shopify_sitemap_adapter_returns_available_matching_product(gal_vorbak):
     assert listings[0].item_price == Decimal("75")
     assert listings[0].shipping_price == Decimal("10")
     assert listings[0].source_listing_id == "101"
+
+
+def test_shopify_watchlist_scan_loads_catalog_and_product_once(gal_vorbak):
+    requests = Counter()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests[request.url.path] += 1
+        if request.url.path == "/sitemap.xml":
+            return httpx.Response(200, text=SITEMAP_INDEX)
+        if request.url.path == "/sitemap_products_1.xml":
+            return httpx.Response(200, text=PRODUCT_SITEMAP)
+        if request.url.path == "/products/gal-vorbak.js":
+            return httpx.Response(
+                200,
+                json={
+                    "id": 100,
+                    "title": "Gal Vorbak Dark Brethren",
+                    "variants": [{"id": 101, "price": 7500, "available": True}],
+                },
+            )
+        return httpx.Response(404)
+
+    dark_brethren = replace(
+        gal_vorbak,
+        id="dark-brethren",
+        name="Dark Brethren",
+        aliases=["Gal Vorbak Dark Brethren"],
+    )
+    settings = {"flat_shipping": 0, "request_delay_seconds": 0}
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        listings = HerrickAdapter(settings, client).search_many(
+            [gal_vorbak, dark_brethren]
+        )
+
+    assert len(listings[gal_vorbak.id]) == 1
+    assert len(listings[dark_brethren.id]) == 1
+    assert requests == Counter(
+        {
+            "/sitemap.xml": 1,
+            "/sitemap_products_1.xml": 1,
+            "/products/gal-vorbak.js": 1,
+        }
+    )
+
+
+def test_shopify_product_failure_keeps_partial_results_safe(
+    monkeypatch, gal_vorbak
+):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/sitemap.xml":
+            return httpx.Response(200, text=SITEMAP_INDEX)
+        if request.url.path == "/sitemap_products_1.xml":
+            return httpx.Response(200, text=PRODUCT_SITEMAP)
+        return httpx.Response(404)
+
+    settings = {"flat_shipping": 0, "request_delay_seconds": 0}
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        adapter = HerrickAdapter(settings, client)
+
+        def fail_product(url):
+            request = httpx.Request("GET", url)
+            response = httpx.Response(503, request=request)
+            raise httpx.HTTPStatusError(
+                "unavailable", request=request, response=response
+            )
+
+        monkeypatch.setattr(adapter, "_get_json", fail_product)
+        listings = adapter.search_many([gal_vorbak])
+
+    assert listings == {gal_vorbak.id: []}
+    assert adapter.complete is False
 
 
 def test_shopify_adapter_skips_unknown_shipping_below_free_threshold(

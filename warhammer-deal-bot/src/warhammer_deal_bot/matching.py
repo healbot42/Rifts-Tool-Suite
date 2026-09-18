@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from .models import Condition, Product
 
@@ -96,13 +97,91 @@ def normalize(text: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", text))
 
 
-def contains_phrase(text: str, phrase: str) -> bool:
-    normalized_text = normalize(text)
-    normalized_phrase = normalize(phrase)
+def _contains_padded(padded_text: str, normalized_phrase: str) -> bool:
     if not normalized_phrase:
         return False
-    pattern = rf"(?:^| ){re.escape(normalized_phrase)}s?(?: |$)"
-    return re.search(pattern, normalized_text) is not None
+    return f" {normalized_phrase} " in padded_text or f" {normalized_phrase}s " in padded_text
+
+
+def _contains_normalized(normalized_text: str, normalized_phrase: str) -> bool:
+    """Match a normalized whole phrase, allowing a plural suffix."""
+    return _contains_padded(f" {normalized_text} ", normalized_phrase)
+
+
+def contains_phrase(text: str, phrase: str) -> bool:
+    return _contains_normalized(normalize(text), normalize(phrase))
+
+
+@dataclass(frozen=True, slots=True)
+class ProductMatcher:
+    """Pre-normalized matching rules for one watched product."""
+
+    product: Product
+    candidates: tuple[str, ...]
+    required_terms: tuple[str, ...]
+    excluded_terms: tuple[str, ...]
+
+
+def prepare_matchers(products: Iterable[Product]) -> tuple[ProductMatcher, ...]:
+    """Prepare reusable product rules before scanning a large retailer catalog."""
+    return tuple(
+        ProductMatcher(
+            product=product,
+            candidates=tuple(normalize(value) for value in (product.name, *product.aliases)),
+            required_terms=tuple(normalize(value) for value in product.required_terms),
+            excluded_terms=tuple(normalize(value) for value in product.excluded_terms),
+        )
+        for product in products
+    )
+
+
+_NORMALIZED_GLOBAL_REJECTIONS = tuple(normalize(term) for term in GLOBAL_REJECTIONS)
+_NORMALIZED_3D_PRINT = normalize("3d print")
+_NORMALIZED_GLOBAL_REJECTIONS_ALLOWING_3D = tuple(
+    term for term in _NORMALIZED_GLOBAL_REJECTIONS if term != _NORMALIZED_3D_PRINT
+)
+_NORMALIZED_LEGIONS_FINGERPRINTS = tuple(
+    normalize(term) for term in LEGIONS_IMPERIALIS_TITLE_FINGERPRINTS
+)
+_NORMALIZED_LOOSE_BITS = tuple(normalize(term) for term in ("bits", "single arm", "single weapon"))
+
+
+def matching_products(
+    title: str,
+    matchers: Iterable[ProductMatcher],
+    allow_3d_prints: bool = False,
+) -> list[Product]:
+    """Match one title against a prepared watchlist with one normalization pass."""
+    normalized_title = normalize(title)
+    padded_title = f" {normalized_title} "
+    candidates = [
+        matcher
+        for matcher in matchers
+        if any(_contains_padded(padded_title, candidate) for candidate in matcher.candidates)
+    ]
+    if not candidates:
+        return []
+
+    rejected = (
+        _NORMALIZED_GLOBAL_REJECTIONS_ALLOWING_3D
+        if allow_3d_prints
+        else _NORMALIZED_GLOBAL_REJECTIONS
+    )
+    if any(_contains_padded(padded_title, term) for term in rejected):
+        return []
+    if any(_contains_padded(padded_title, term) for term in _NORMALIZED_LEGIONS_FINGERPRINTS):
+        return []
+    if any(_contains_padded(padded_title, term) for term in _NORMALIZED_LOOSE_BITS):
+        return []
+
+    matches: list[Product] = []
+    for matcher in candidates:
+        if any(_contains_padded(padded_title, term) for term in matcher.excluded_terms):
+            continue
+        if not all(_contains_padded(padded_title, term) for term in matcher.required_terms):
+            continue
+        matches.append(matcher.product)
+    return matches
 
 
 def reject_reason(title: str, product: Product, allow_3d_prints: bool = False) -> str | None:
@@ -123,12 +202,7 @@ def reject_reason(title: str, product: Product, allow_3d_prints: bool = False) -
 
 
 def matches_product(title: str, product: Product, allow_3d_prints: bool = False) -> bool:
-    if reject_reason(title, product, allow_3d_prints):
-        return False
-    candidates: Iterable[str] = (product.name, *product.aliases)
-    if not any(contains_phrase(title, candidate) for candidate in candidates):
-        return False
-    return all(contains_phrase(title, term) for term in product.required_terms)
+    return bool(matching_products(title, prepare_matchers((product,)), allow_3d_prints))
 
 
 def classify_condition(title: str, source_condition: str | None = None) -> Condition:

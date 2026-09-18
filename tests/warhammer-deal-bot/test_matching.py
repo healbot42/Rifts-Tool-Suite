@@ -2,6 +2,8 @@ from warhammer_deal_bot.matching import (
     classify_condition,
     infer_quantity,
     matches_product,
+    matching_products,
+    prepare_matchers,
 )
 from warhammer_deal_bot.models import Condition
 
@@ -11,6 +13,15 @@ def test_alias_and_condition_matching(gal_vorbak):
     assert matches_product(title, gal_vorbak)
     assert classify_condition(title) is Condition.NEW_ON_SPRUE
     assert infer_quantity(title) == 5
+
+
+def test_prepared_watchlist_matching_preserves_product_rules(gal_vorbak):
+    matchers = prepare_matchers([gal_vorbak])
+
+    assert matching_products("Gal Vorbak Dark Brethren sealed", matchers) == [
+        gal_vorbak
+    ]
+    assert matching_products("Gal Vorbak Dark Brethren STL", matchers) == []
 
 
 def test_false_positive_rejections(gal_vorbak):

@@ -28,6 +28,7 @@ sources:
     enabled: true
     marketplace: EBAY_US
     limit_per_query: 50
+    request_delay_seconds: 0.25
     allow_3d_prints: false
   games_workshop:
     {

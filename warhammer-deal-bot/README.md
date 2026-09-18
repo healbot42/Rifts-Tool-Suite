@@ -195,9 +195,13 @@ python -m warhammer_deal_bot report
 
 A source failure is logged and does not abort other sources. Invalid
 configuration, database access failures, and missing required credentials are
-fatal. Network requests use timeouts, bounded exponential retries, per-product
-randomized delays, and conservative limits. Logs include returned and alertable
-counts.
+fatal. Independent retailer domains scan concurrently with isolated HTTP
+clients, while each adapter retains its own per-request delay. Catalog-backed
+adapters traverse and normalize each sitemap once per run, share duplicate
+queries, and fetch each candidate product page once. Network requests use
+timeouts, bounded exponential retries, and conservative limits. A failed
+candidate request makes that source partial without marking unseen listings
+unavailable. Logs include returned and alertable counts.
 
 Retailer listings use item price only, with shipping recorded as zero by user
 choice. eBay continues to use the shipping quote returned for each listing.

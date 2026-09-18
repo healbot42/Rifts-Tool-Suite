@@ -1,3 +1,5 @@
+import threading
+from decimal import Decimal
 from types import SimpleNamespace
 
 import httpx
@@ -47,3 +49,30 @@ def test_remote_watchlist_failure_falls_back_to_yaml():
 
     assert catalog == [local_product]
     assert authoritative is False
+
+
+def test_enabled_sources_scan_concurrently(monkeypatch, tmp_path, gal_vorbak):
+    barrier = threading.Barrier(2)
+
+    class DisabledRemote:
+        enabled = False
+
+        def __init__(self, _client):
+            pass
+
+    def scan_source(_name, _settings, products):
+        barrier.wait(timeout=2)
+        return {product.id: [] for product in products}, True
+
+    monkeypatch.setattr(service, "RemoteHistory", DisabledRemote)
+    monkeypatch.setattr(service, "_scan_source", scan_source)
+    config = SimpleNamespace(
+        database=tmp_path / "deals.sqlite3",
+        products=[gal_vorbak],
+        sources={"first": {"enabled": True}, "second": {"enabled": True}},
+        email=SimpleNamespace(enabled=False),
+        price_drop_realert=Decimal("5"),
+        reappeared_realert=True,
+    )
+
+    assert service.run(config) == []

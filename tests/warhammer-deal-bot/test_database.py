@@ -36,6 +36,28 @@ def test_duplicate_and_price_drop_realert(tmp_path):
     )
 
 
+def test_observe_many_persists_a_batch_in_input_order(tmp_path):
+    database = Database(tmp_path / "deals.sqlite3")
+    first = make_listing("70")
+    second = make_listing("65")
+    second.source_listing_id = "456"
+
+    observed = database.observe_many([first, second])
+
+    assert [row[1] for row in observed] == [True, True]
+    with database.connect() as connection:
+        assert (
+            connection.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
+            == 2
+        )
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM price_observations"
+            ).fetchone()[0]
+            == 2
+        )
+
+
 def test_remote_observations_are_idempotent_and_feed_median(tmp_path):
     database = Database(tmp_path / "deals.sqlite3")
     observed_at = datetime.now(UTC).isoformat()

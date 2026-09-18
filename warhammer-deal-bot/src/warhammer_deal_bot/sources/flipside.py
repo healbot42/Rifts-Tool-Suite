@@ -1,17 +1,20 @@
 """Flipside's documented read-only agent catalog integration."""
 
+import logging
 import re
 import time
 from decimal import Decimal, InvalidOperation
 from urllib.parse import quote_plus, urljoin, urlsplit
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from ..matching import matches_product
 from ..models import Condition, Listing, Product
 from ..security import sanitize_raw_metadata, validate_https_url
-from .base import SourceAdapter
+from .base import SourceAdapter, retryable_http_error
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FlipsideAdapter(SourceAdapter):
@@ -22,7 +25,7 @@ class FlipsideAdapter(SourceAdapter):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(retryable_http_error),
         reraise=True,
     )
     def _get(self, url: str) -> httpx.Response:
@@ -32,32 +35,55 @@ class FlipsideAdapter(SourceAdapter):
         return response
 
     def search(self, product: Product) -> list[Listing]:
-        candidate_urls: set[str] = set()
-        for query in product.queries:
+        return self.search_many([product])[product.id]
+
+    def search_many(self, products: list[Product]) -> dict[str, list[Listing]]:
+        """Issue unique searches once and fetch each candidate product once."""
+        query_products: dict[str, list[Product]] = {}
+        for product in products:
+            for query in product.queries:
+                query_products.setdefault(query, []).append(product)
+
+        candidate_products: dict[str, dict[str, Product]] = {}
+        for query, query_matches in query_products.items():
             search_url = f"{self.base_url}/search?q={quote_plus(query)}&type=product"
+            try:
+                content = self._get(search_url).text
+            except httpx.HTTPError as error:
+                self.complete = False
+                LOGGER.warning("source=%s skipped query=%r error=%s", self.name, query, error)
+                continue
             links = {
                 urljoin(self.base_url, match)
                 for match in re.findall(
                     r'href=["\']([^"\']*/products/[^"\'?#]+)',
-                    self._get(search_url).text,
+                    content,
                     re.IGNORECASE,
                 )
             }
             for url in links:
                 safe_url = validate_https_url(url, self.allowed_hosts)
                 slug = urlsplit(safe_url).path.replace("-", " ")
-                if matches_product(slug, product):
-                    candidate_urls.add(safe_url)
+                for product in query_matches:
+                    if matches_product(slug, product):
+                        candidate_products.setdefault(safe_url, {})[product.id] = product
 
-        found: dict[str, Listing] = {}
-        for safe_url in list(candidate_urls)[:50]:
-            payload = self._get(f"{safe_url}.json").json()
+        found: dict[str, dict[str, Listing]] = {product.id: {} for product in products}
+        for safe_url, matched_products in candidate_products.items():
+            try:
+                payload = self._get(f"{safe_url}.json").json()
+            except (httpx.HTTPError, ValueError) as error:
+                self.complete = False
+                LOGGER.warning(
+                    "source=%s skipped product url=%s error=%s", self.name, safe_url, error
+                )
+                continue
             data = payload.get("product") if isinstance(payload, dict) else None
             if not isinstance(data, dict):
                 continue
             title = str(data.get("title", ""))
             variants = data.get("variants")
-            if not matches_product(title, product) or not isinstance(variants, list):
+            if not isinstance(variants, list):
                 continue
             available = [
                 variant
@@ -75,18 +101,21 @@ class FlipsideAdapter(SourceAdapter):
             identifier = str(chosen.get("id", ""))
             if not identifier or not price.is_finite() or price < 0:
                 continue
-            found[identifier] = Listing(
-                source=self.name,
-                source_listing_id=identifier,
-                title=title,
-                product_match=product.id,
-                url=safe_url,
-                item_price=price,
-                shipping_price=Decimal("0"),
-                condition=Condition.NEW_IN_BOX,
-                seller_name=self.name,
-                location="US",
-                quantity=product.expected_models,
-                raw=sanitize_raw_metadata(data),
-            )
-        return list(found.values())
+            for product in matched_products.values():
+                if not matches_product(title, product):
+                    continue
+                found[product.id][identifier] = Listing(
+                    source=self.name,
+                    source_listing_id=identifier,
+                    title=title,
+                    product_match=product.id,
+                    url=safe_url,
+                    item_price=price,
+                    shipping_price=Decimal("0"),
+                    condition=Condition.NEW_IN_BOX,
+                    seller_name=self.name,
+                    location="US",
+                    quantity=product.expected_models,
+                    raw=sanitize_raw_metadata(data),
+                )
+        return {product_id: list(values.values()) for product_id, values in found.items()}

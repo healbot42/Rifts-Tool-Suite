@@ -122,52 +122,62 @@ class Database:
             )
 
     def observe(self, listing: Listing) -> tuple[int, bool, Decimal | None, bool]:
-        now = listing.last_seen.isoformat()
+        return self.observe_many([listing])[0]
+
+    def observe_many(self, listings: list[Listing]) -> list[tuple[int, bool, Decimal | None, bool]]:
+        """Persist a source batch in one transaction, preserving input order."""
         with self.connect() as db:
-            prior = db.execute(
-                "SELECT * FROM listings WHERE source=? AND source_listing_id=?",
-                (listing.source, listing.source_listing_id),
-            ).fetchone()
-            was_unavailable = bool(prior and not prior["available"])
-            previous_price = (
-                Decimal(prior["last_item_price"]) + Decimal(prior["last_shipping_price"])
-                if prior
-                else None
-            )
-            db.execute(
-                """INSERT INTO listings(source, source_listing_id, product_id, title, url,
-                condition, currency, first_seen, last_seen, available, last_item_price,
-                last_shipping_price, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
-                ON CONFLICT(source, source_listing_id) DO UPDATE SET product_id=excluded.product_id,
-                title=excluded.title, url=excluded.url, condition=excluded.condition,
-                last_seen=excluded.last_seen, available=1, last_item_price=excluded.last_item_price,
-                last_shipping_price=excluded.last_shipping_price, raw_json=excluded.raw_json""",
-                (
-                    listing.source,
-                    listing.source_listing_id,
-                    listing.product_match,
-                    listing.title,
-                    listing.url,
-                    listing.condition.value,
-                    listing.currency,
-                    listing.first_seen.isoformat(),
-                    now,
-                    str(listing.item_price),
-                    str(listing.shipping_price),
-                    json.dumps(sanitize_raw_metadata(listing.raw), default=str),
-                ),
-            )
-            row = db.execute(
-                "SELECT id FROM listings WHERE source=? AND source_listing_id=?",
-                (listing.source, listing.source_listing_id),
-            ).fetchone()
-            listing_id = int(row["id"])
-            db.execute(
-                """INSERT INTO price_observations(
-                listing_id, observed_at, delivered_price) VALUES (?, ?, ?)""",
-                (listing_id, now, str(listing.delivered_price)),
-            )
-            return listing_id, prior is None, previous_price, was_unavailable
+            return [self._observe(db, listing) for listing in listings]
+
+    @staticmethod
+    def _observe(
+        db: sqlite3.Connection, listing: Listing
+    ) -> tuple[int, bool, Decimal | None, bool]:
+        now = listing.last_seen.isoformat()
+        prior = db.execute(
+            "SELECT * FROM listings WHERE source=? AND source_listing_id=?",
+            (listing.source, listing.source_listing_id),
+        ).fetchone()
+        was_unavailable = bool(prior and not prior["available"])
+        previous_price = (
+            Decimal(prior["last_item_price"]) + Decimal(prior["last_shipping_price"])
+            if prior
+            else None
+        )
+        db.execute(
+            """INSERT INTO listings(source, source_listing_id, product_id, title, url,
+            condition, currency, first_seen, last_seen, available, last_item_price,
+            last_shipping_price, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+            ON CONFLICT(source, source_listing_id) DO UPDATE SET product_id=excluded.product_id,
+            title=excluded.title, url=excluded.url, condition=excluded.condition,
+            last_seen=excluded.last_seen, available=1, last_item_price=excluded.last_item_price,
+            last_shipping_price=excluded.last_shipping_price, raw_json=excluded.raw_json""",
+            (
+                listing.source,
+                listing.source_listing_id,
+                listing.product_match,
+                listing.title,
+                listing.url,
+                listing.condition.value,
+                listing.currency,
+                listing.first_seen.isoformat(),
+                now,
+                str(listing.item_price),
+                str(listing.shipping_price),
+                json.dumps(sanitize_raw_metadata(listing.raw), default=str),
+            ),
+        )
+        row = db.execute(
+            "SELECT id FROM listings WHERE source=? AND source_listing_id=?",
+            (listing.source, listing.source_listing_id),
+        ).fetchone()
+        listing_id = int(row["id"])
+        db.execute(
+            """INSERT INTO price_observations(
+            listing_id, observed_at, delivered_price) VALUES (?, ?, ?)""",
+            (listing_id, now, str(listing.delivered_price)),
+        )
+        return listing_id, prior is None, previous_price, was_unavailable
 
     def should_alert(
         self,
@@ -190,11 +200,20 @@ class Database:
         )
 
     def record_alert(self, listing_id: int, delivered: Decimal, reason: str) -> None:
+        self.record_alerts([(listing_id, delivered, reason)])
+
+    def record_alerts(self, alerts: list[tuple[int, Decimal, str]]) -> None:
+        """Record a digest's alert state in one transaction."""
+        if not alerts:
+            return
         with self.connect() as db:
-            db.execute(
+            db.executemany(
                 """INSERT INTO alert_history(
                 listing_id, alerted_at, delivered_price, reason) VALUES (?, ?, ?, ?)""",
-                (listing_id, datetime.now(UTC).isoformat(), str(delivered), reason),
+                [
+                    (listing_id, datetime.now(UTC).isoformat(), str(delivered), reason)
+                    for listing_id, delivered, reason in alerts
+                ],
             )
 
     def start_source_run(self, source: str) -> int:

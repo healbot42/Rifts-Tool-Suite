@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -34,6 +35,25 @@ def test_fixture_style_ebay_parser(monkeypatch, gal_vorbak):
     assert result.quantity == 5
     assert result.image_url == "https://i.ebayimg.com/images/g/test/s-l500.jpg"
     assert result.ends_at == datetime(2099, 1, 1, tzinfo=UTC)
+
+
+def test_watchlist_scan_issues_duplicate_query_once(monkeypatch, gal_vorbak):
+    monkeypatch.setenv("EBAY_CLIENT_ID", "id")
+    monkeypatch.setenv("EBAY_CLIENT_SECRET", "secret")
+    duplicate = replace(gal_vorbak, id="gal-vorbak-copy")
+    calls = []
+    adapter = EbayAdapter({"request_delay_seconds": 0}, httpx.Client())
+
+    def query(value):
+        calls.append(value)
+        return {"itemSummaries": [ebay_item()]}
+
+    monkeypatch.setattr(adapter, "_query", query)
+    results = adapter.search_many([gal_vorbak, duplicate])
+
+    assert calls == gal_vorbak.queries
+    assert len(results[gal_vorbak.id]) == 1
+    assert len(results[duplicate.id]) == 1
 
 
 def test_expired_and_out_of_stock_items_are_rejected(monkeypatch, gal_vorbak):

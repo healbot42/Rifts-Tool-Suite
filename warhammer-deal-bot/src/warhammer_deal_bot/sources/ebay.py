@@ -1,17 +1,21 @@
 """Official eBay Browse API adapter."""
 
 import base64
+import logging
 import os
+import time
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from ..matching import classify_condition, infer_quantity, matches_product
 from ..models import Listing, Product
 from ..security import sanitize_raw_metadata, validate_https_url
-from .base import SourceAdapter
+from .base import SourceAdapter, retryable_http_error
+
+LOGGER = logging.getLogger(__name__)
 
 
 class EbayAdapter(SourceAdapter):
@@ -28,11 +32,12 @@ class EbayAdapter(SourceAdapter):
         if not self.client_id or not self.client_secret:
             raise ValueError("eBay is enabled but EBAY_CLIENT_ID/EBAY_CLIENT_SECRET are missing")
         self._token: str | None = None
+        self.request_delay = float(settings.get("request_delay_seconds", 0.25))
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(retryable_http_error),
         reraise=True,
     )
     def _access_token(self) -> str:
@@ -54,7 +59,7 @@ class EbayAdapter(SourceAdapter):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(retryable_http_error),
         reraise=True,
     )
     def _query(self, query: str) -> dict[str, object]:
@@ -67,6 +72,7 @@ class EbayAdapter(SourceAdapter):
             params={"q": query, "limit": int(self.settings.get("limit_per_query", 50))},
         )
         response.raise_for_status()
+        time.sleep(self.request_delay)
         return response.json()
 
     def query_local(self, query: str, postal_code: str, radius_miles: int) -> dict[str, object]:
@@ -137,13 +143,33 @@ class EbayAdapter(SourceAdapter):
         return listing
 
     def search(self, product: Product) -> list[Listing]:
-        found: dict[str, Listing] = {}
-        for query in product.queries:
-            for item in self._query(query).get("itemSummaries", []):  # type: ignore[union-attr]
-                listing = self.parse_item(item, product)
-                if listing:
-                    found[listing.source_listing_id] = listing
-        return list(found.values())
+        return self.search_many([product])[product.id]
+
+    def search_many(self, products: list[Product]) -> dict[str, list[Listing]]:
+        """Issue duplicate watchlist queries once while retaining product-specific matching."""
+        query_products: dict[str, list[Product]] = {}
+        for product in products:
+            for query in product.queries:
+                query_products.setdefault(query, []).append(product)
+
+        found: dict[str, dict[str, Listing]] = {product.id: {} for product in products}
+        for query, query_matches in query_products.items():
+            try:
+                items = self._query(query).get("itemSummaries", [])
+            except (httpx.HTTPError, ValueError) as error:
+                self.complete = False
+                LOGGER.warning("source=%s skipped query=%r error=%s", self.name, query, error)
+                continue
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                for product in query_matches:
+                    listing = self.parse_item(item, product)
+                    if listing:
+                        found[product.id][listing.source_listing_id] = listing
+        return {product_id: list(values.values()) for product_id, values in found.items()}
 
     def parse_item(self, item: dict[str, object], product: Product) -> Listing | None:
         title = str(item.get("title", ""))
