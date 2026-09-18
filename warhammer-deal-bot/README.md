@@ -214,24 +214,41 @@ configured material price drop or an enabled reappearance. Thirty-day median
 rules start after five observations. Tax is excluded when the source does not
 provide it.
 
-When `DATA_API_URL` and `DATA_API_TOKEN` are set, each run also copies price
-observations to the authenticated Cloudflare D1 API in
-`cloudflare/rifts-data-api/worker.js` and restores the last 30 days before
-evaluating deals. The local SQLite database remains the fallback if D1 is
-unavailable. The API also stores purchased quantities; once a product's
-`purchased_quantity` reaches `quantity_wanted`, scans for that product stop. The
-D1 database can support later Rifts Tool Suite backend features through new
-Worker routes. Browser clients must use authenticated Worker endpoints and must
-never receive `DATA_API_TOKEN`.
+When `DATA_API_URL` and `DATA_API_TOKEN` are set, each run loads 30-day price
+medians from the authenticated Cloudflare D1 API in
+`cloudflare/rifts-data-api/worker.js` and copies new observations back after the
+scan. The local SQLite database remains the fallback if D1 is unavailable. The
+API also stores purchased quantities; once a product's `purchased_quantity`
+reaches `quantity_wanted`, scans for that product stop. The D1 database can
+support later Rifts Tool Suite backend features through new Worker routes.
+Browser clients must use authenticated Worker endpoints and must never receive
+`DATA_API_TOKEN`.
+
+The scanner loads compact price medians for the complete watchlist in one D1
+request. It accumulates observations while retailer scans run, sends email and
+records local alert state first, then uploads observations in batches of 100. D1
+read or write failures fall back to local history and do not interrupt the
+retailer scan. The Worker prunes expired observations on its daily cron.
+
+D1 schema changes belong in `cloudflare/rifts-data-api/migrations/` and are
+applied before deploying the Worker; request handlers never run schema DDL.
+Recovery-only reverse scripts live in `cloudflare/rifts-data-api/rollbacks/` so
+Wrangler does not mistake them for forward migrations.
+
+```powershell
+npx wrangler d1 migrations apply rifts-tool-suite --remote --config cloudflare/rifts-data-api/wrangler.jsonc
+npx wrangler deploy --config cloudflare/rifts-data-api/wrangler.jsonc
+```
 
 The suite's **Deal Watchlist** page manages products through `/v1/watchlist`.
 Each record includes the Cloudflare Access email that owns it, so future users'
 lists remain separate. The first signed-in user can import the current YAML
-catalog, then add, edit, pause, remove, and update quantities. Once the web list
-contains products, the scheduled bot reads it from `/v1/bot/watchlist`; until
-then the YAML catalog remains the fallback. With one owner, selection is
-automatic. Before adding a second owner, set the Worker's `DEAL_BOT_OWNER`
-variable to the email whose list the bot should scan.
+catalog, then add, edit, pause, remove, and update quantities. The scheduled bot
+uses `/v1/bot/watchlist` as authoritative whenever it is available, including an
+empty list; YAML is used only when remote configuration cannot be loaded. With
+one owner, selection is automatic. Before adding a second owner, set the
+Worker's `DEAL_BOT_USER_ID` variable to the immutable user ID whose list the bot
+should scan.
 
 Protect only `/v1/watchlist*` with a Cloudflare Access self-hosted application
 and an allow policy for the intended email addresses. The other `/v1` routes

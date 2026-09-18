@@ -2,6 +2,7 @@
 
 import os
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
@@ -40,6 +41,29 @@ class RemoteHistory:
         payload = response.json()
         return payload.get("observations", [])
 
+    def medians(self, product_ids: list[str], days: int = 30) -> dict[str, Decimal]:
+        """Load durable price medians for a complete scan in one request."""
+        if not self.enabled or not product_ids:
+            return {}
+        since = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        response = self.client.post(
+            f"{self.url}/v1/price-medians",
+            headers=self.headers,
+            json={"product_ids": product_ids, "since": since},
+        )
+        response.raise_for_status()
+        rows = response.json().get("medians", [])
+        if not isinstance(rows, list):
+            raise ValueError("Remote price medians must be a list")
+        medians: dict[str, Decimal] = {}
+        for row in rows:
+            try:
+                product_id = str(row["product_id"])
+                medians[product_id] = Decimal(str(row["median"]))
+            except (InvalidOperation, KeyError, TypeError) as error:
+                raise ValueError("Remote price median is invalid") from error
+        return medians
+
     def purchases(self) -> dict[str, int]:
         if not self.enabled:
             return {}
@@ -51,7 +75,7 @@ class RemoteHistory:
         }
 
     def watchlist(self) -> list[dict[str, Any]]:
-        """Return the web-managed catalog; an empty list keeps YAML as fallback."""
+        """Return the authoritative web-managed catalog, including an empty one."""
         if not self.enabled:
             return []
         response = self.client.get(f"{self.url}/v1/bot/watchlist", headers=self.headers)
@@ -71,9 +95,9 @@ class RemoteHistory:
             raise ValueError("Remote chair settings must be an object")
         return settings
 
-    def store(self, listings: list[Listing]) -> None:
+    def store(self, listings: list[Listing]) -> int:
         if not self.enabled:
-            return
+            return 0
         rows = [
             {
                 "source": listing.source,
@@ -89,6 +113,7 @@ class RemoteHistory:
             }
             for listing in listings
         ]
+        stored = 0
         for offset in range(0, len(rows), 100):
             response = self.client.post(
                 f"{self.url}/v1/observations",
@@ -96,6 +121,8 @@ class RemoteHistory:
                 json={"observations": rows[offset : offset + 100]},
             )
             response.raise_for_status()
+            stored += len(rows[offset : offset + 100])
+        return stored
 
     def prune(self) -> None:
         """Remove expired remote observations once after a complete scan."""

@@ -1,6 +1,37 @@
 import sqlite3
 from pathlib import Path
 
+MIGRATIONS = (
+    Path(__file__).parents[2] / "cloudflare" / "rifts-data-api" / "migrations"
+)
+
+
+def test_complete_migration_chain_builds_a_fresh_database():
+    connection = sqlite3.connect(":memory:")
+
+    for migration in sorted(MIGRATIONS.glob("*.sql")):
+        connection.executescript(migration.read_text(encoding="utf-8"))
+
+    tables = {
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
+    }
+    assert {
+        "deal_observations",
+        "users",
+        "purchases",
+        "watchlist_products",
+        "chair_settings",
+        "sessions",
+        "session_members",
+        "initiative_session_state",
+    } <= tables
+    assert connection.execute(
+        "SELECT version FROM schema_migrations ORDER BY version"
+    ).fetchall() == [(2,), (3,)]
+
 
 def test_user_account_migration_preserves_legacy_deal_bot_data():
     connection = sqlite3.connect(":memory:")
@@ -24,13 +55,9 @@ def test_user_account_migration_preserves_legacy_deal_bot_data():
         INSERT INTO purchases VALUES ('possessed', 2, 'updated');
         """
     )
-    migration = (
-        Path(__file__).parents[2]
-        / "cloudflare"
-        / "rifts-data-api"
-        / "migrations"
-        / "0002-user-accounts.sql"
-    ).read_text(encoding="utf-8")
+    migration = (MIGRATIONS / "0002-user-accounts.sql").read_text(
+        encoding="utf-8"
+    )
     connection.executescript(migration)
 
     user = connection.execute("SELECT id, email FROM users").fetchone()
@@ -60,13 +87,9 @@ def test_observation_retention_migration_adds_timestamp_index():
           observed_at TEXT NOT NULL);
         """
     )
-    migration = (
-        Path(__file__).parents[2]
-        / "cloudflare"
-        / "rifts-data-api"
-        / "migrations"
-        / "0003-observation-retention-index.sql"
-    ).read_text(encoding="utf-8")
+    migration = (MIGRATIONS / "0003-observation-retention-index.sql").read_text(
+        encoding="utf-8"
+    )
     connection.executescript(migration)
 
     query_plan = connection.execute(

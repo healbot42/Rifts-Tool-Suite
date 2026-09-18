@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import {
+import worker, {
   handleRequest,
   observationRetentionCutoff,
+  priceMedians,
   pruneObservations,
   storeObservations,
 } from '../../cloudflare/rifts-data-api/worker.js'
@@ -69,6 +70,51 @@ describe('Rifts data API', () => {
         values: ['2026-08-16T12:00:00.000Z'],
       },
     ])
+  })
+
+  it('loads medians for the complete product set in one query', async () => {
+    const statements = []
+    const db = {
+      prepare: (sql) => ({
+        bind(...values) {
+          statements.push({ sql, values })
+          return {
+            all: async () => ({
+              results: [
+                {
+                  product_id: 'product-1',
+                  median: 42.5,
+                  observation_count: 9,
+                },
+              ],
+            }),
+          }
+        },
+      }),
+    }
+
+    await expect(
+      priceMedians(db, ['product-1', 'product-2'], '2026-08-01T00:00:00Z'),
+    ).resolves.toEqual([
+      { product_id: 'product-1', median: 42.5, observation_count: 9 },
+    ])
+    expect(statements).toHaveLength(1)
+    expect(statements[0].sql).toContain('ROW_NUMBER() OVER')
+    expect(statements[0].values).toEqual([
+      'product-1',
+      'product-2',
+      '2026-08-01T00:00:00Z',
+    ])
+  })
+
+  it('prunes observations from the Worker cron without an HTTP request', async () => {
+    const db = {
+      prepare: () => ({
+        bind: () => ({ run: async () => ({ meta: { changes: 2 } }) }),
+      }),
+    }
+
+    await expect(worker.scheduled({}, { DB: db })).resolves.toBeUndefined()
   })
 
   it('exposes a public health check without database access', async () => {

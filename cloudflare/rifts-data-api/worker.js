@@ -34,52 +34,6 @@ async function authorized(request, env) {
   )
 }
 
-async function ensureSchema(db) {
-  await db.batch([
-    db.prepare(`CREATE TABLE IF NOT EXISTS schema_migrations (
-      version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS deal_observations (
-      source TEXT NOT NULL, source_listing_id TEXT NOT NULL, product_id TEXT NOT NULL,
-      observed_at TEXT NOT NULL, delivered_price TEXT NOT NULL, title TEXT NOT NULL,
-      url TEXT NOT NULL, image_url TEXT, ends_at TEXT, available INTEGER NOT NULL,
-      PRIMARY KEY (source, source_listing_id, observed_at))`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS deal_observations_product_time
-      ON deal_observations(product_id, observed_at)`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS deal_observations_observed_at_jd
-      ON deal_observations(julianday(observed_at))`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS purchases (
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      product_id TEXT NOT NULL, quantity INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT NOT NULL, PRIMARY KEY (user_id, product_id))`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS watchlist_products (
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      product_id TEXT NOT NULL, config_json TEXT NOT NULL,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-      PRIMARY KEY (user_id, product_id))`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS watchlist_products_user
-      ON watchlist_products(user_id, updated_at)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS chair_settings (
-      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      config_json TEXT NOT NULL, updated_at TEXT NOT NULL)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS session_members (
-      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      role TEXT NOT NULL CHECK(role IN ('owner', 'editor', 'viewer')),
-      joined_at TEXT NOT NULL, PRIMARY KEY (session_id, user_id))`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS initiative_session_state (
-      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-      state_json TEXT NOT NULL, updated_at TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1)`),
-  ])
-}
-
 function corsHeaders(request) {
   const origin = request?.headers.get('origin')
   if (!ALLOWED_ORIGINS.has(origin)) return {}
@@ -178,6 +132,33 @@ async function pruneObservations(db, now = new Date()) {
     .bind(observationRetentionCutoff(now))
     .run()
   return result.meta?.changes ?? 0
+}
+
+async function priceMedians(db, productIds, since) {
+  const placeholders = productIds.map(() => '?').join(',')
+  const result = await db
+    .prepare(
+      `WITH ranked AS (
+         SELECT product_id, CAST(delivered_price AS REAL) AS price,
+                ROW_NUMBER() OVER (
+                  PARTITION BY product_id ORDER BY CAST(delivered_price AS REAL)
+                ) AS price_rank,
+                COUNT(*) OVER (PARTITION BY product_id) AS observation_count
+         FROM deal_observations
+         WHERE product_id IN (${placeholders}) AND observed_at >= ?
+       )
+       SELECT product_id, AVG(price) AS median, observation_count
+       FROM ranked
+       WHERE price_rank IN (
+         (observation_count + 1) / 2,
+         (observation_count + 2) / 2
+       )
+       GROUP BY product_id, observation_count
+       HAVING observation_count >= 5`,
+    )
+    .bind(...productIds, since)
+    .all()
+  return result.results
 }
 
 function normalizeStringList(value) {
@@ -379,7 +360,6 @@ async function watchlistRequest(request, env, ctx, url) {
   const owner = await accessOwner(request, ctx)
   if (!owner)
     return json({ error: 'Cloudflare Access sign-in required' }, 403, request)
-  await ensureSchema(env.DB)
   const user = await provisionUser(env.DB, owner)
   if (url.pathname === '/v1/watchlist/session' && request.method === 'GET') {
     const destination = safeAppReturn(url)
@@ -510,8 +490,6 @@ async function handleRequest(request, env, ctx) {
   }
   if (!(await authorized(request, env)))
     return json({ error: 'Unauthorized' }, 401)
-  await ensureSchema(env.DB)
-
   if (request.method === 'GET' && url.pathname === '/v1/bot/watchlist') {
     let user
     try {
@@ -562,6 +540,36 @@ async function handleRequest(request, env, ctx) {
       .bind(productId, since)
       .all()
     return json({ observations: result.results })
+  }
+
+  if (request.method === 'POST' && url.pathname === '/v1/price-medians') {
+    let payload
+    try {
+      payload = await bodyJson(request)
+    } catch (error) {
+      return json({ error: error.message || 'Invalid request body' }, 400)
+    }
+    const productIds = payload.product_ids
+    const since = String(payload.since || '')
+    if (
+      !Array.isArray(productIds) ||
+      productIds.length === 0 ||
+      productIds.length > 100 ||
+      productIds.some(
+        (productId) =>
+          typeof productId !== 'string' ||
+          productId.length === 0 ||
+          productId.length > 200,
+      ) ||
+      !Number.isFinite(Date.parse(since))
+    ) {
+      return json(
+        { error: 'product_ids and a valid since timestamp are required' },
+        400,
+      )
+    }
+    const medians = await priceMedians(env.DB, [...new Set(productIds)], since)
+    return json({ medians })
   }
 
   if (request.method === 'POST' && url.pathname === '/v1/observations') {
@@ -635,10 +643,15 @@ async function handleRequest(request, env, ctx) {
   return json({ error: 'Not found' }, 404)
 }
 
+async function handleScheduled(_controller, env) {
+  await pruneObservations(env.DB)
+}
+
 export {
   handleRequest,
   observationRetentionCutoff,
+  priceMedians,
   pruneObservations,
   storeObservations,
 }
-export default { fetch: handleRequest }
+export default { fetch: handleRequest, scheduled: handleScheduled }
