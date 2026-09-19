@@ -35,14 +35,10 @@ sources:
       enabled: false,
       reason: 'Configured MSRP reference only; no verified public API',
     }
-  warpfire:
-    enabled: true
-    flat_shipping: 0
-    request_delay_seconds: 0.5
   gamersguild:
     enabled: true
     flat_shipping: 0
-    request_delay_seconds: 0.5
+    request_delay_seconds: 3.0
   herrick:
     enabled: true
     flat_shipping: 0
@@ -58,15 +54,15 @@ sources:
   flipside:
     enabled: true
     flat_shipping: 0
-    request_delay_seconds: 0.5
+    request_delay_seconds: 3.0
   lazarus:
     enabled: true
     flat_shipping: 0
-    request_delay_seconds: 0.5
+    request_delay_seconds: 3.0
   little_big_wars:
     enabled: true
     flat_shipping: 0
-    request_delay_seconds: 0.5
+    request_delay_seconds: 3.0
   troll_trader:
     {
       enabled: false,

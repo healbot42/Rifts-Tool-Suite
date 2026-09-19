@@ -9,14 +9,17 @@ def test_example_config_loads():
     )
     assert len(config.products) == 23
     assert config.sources["ebay"]["enabled"] is True
-    assert config.sources["warpfire"]["enabled"] is True
     assert config.sources["gamersguild"]["enabled"] is True
+    assert config.sources["gamersguild"]["request_delay_seconds"] == 3.0
     assert config.sources["herrick"]["flat_shipping"] == 0
     assert config.sources["miniature_market"]["enabled"] is True
     assert config.sources["valhalla"]["enabled"] is True
     assert config.sources["flipside"]["enabled"] is True
+    assert config.sources["flipside"]["request_delay_seconds"] == 3.0
     assert config.sources["lazarus"]["enabled"] is True
+    assert config.sources["lazarus"]["request_delay_seconds"] == 3.0
     assert config.sources["little_big_wars"]["flat_shipping"] == 0
+    assert config.sources["little_big_wars"]["request_delay_seconds"] == 3.0
     assert config.products[1].quantity_wanted == 2
     assert config.products[1].minimum_models == 5
     assert config.email.max_deals_per_product == 3

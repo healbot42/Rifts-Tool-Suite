@@ -14,7 +14,7 @@ GitHub remote but does not ship in the Vue site.
 | Games Workshop                                      | Reference-only   | MSRP lives in YAML; no verified public US product API                      |
 | Gamers Guild USA, Herrick, Little Big Wars, Lazarus | Implemented      | Public Shopify product sitemaps and product records                        |
 | Flipside                                            | Implemented      | Store-documented agent search and product JSON routes                      |
-| Warpfire and Miniature Market                       | Implemented      | Advertised product sitemaps and public product metadata                    |
+| Miniature Market                                    | Implemented      | Advertised product sitemap and public product metadata                     |
 | Valhalla Hobby                                      | Implemented      | Public catalog search and embedded inventory records                       |
 | Troll Trader                                        | Disabled adapter | UK retailer explicitly excluded from searches and alerts                   |
 | Reddit r/Miniswap                                   | Disabled adapter | Requires approved Reddit OAuth API access; HTML/JSON search is not scraped |

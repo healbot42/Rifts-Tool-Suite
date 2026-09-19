@@ -20,7 +20,6 @@ SMTP_PASSWORD_ENV = "SMTP_APP_PASSWORD"
 SMTP_RECIPIENT_ENV = "DEAL_BOT_EMAIL_TO"
 EMAIL_LINK_HOSTS = {
     "ebay": {"ebay.com"},
-    "warpfire": {"warpfireminis.com"},
     "gamersguild": {"gamersguildusa.com"},
     "herrick": {"herrickgames.com"},
     "miniature_market": {"miniaturemarket.com"},

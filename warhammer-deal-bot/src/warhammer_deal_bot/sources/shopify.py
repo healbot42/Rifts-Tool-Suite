@@ -57,9 +57,9 @@ class ShopifySitemapAdapter(SourceAdapter):
     )
     def _get_text(self, url: str) -> str:
         validate_https_url(url, self.allowed_hosts)
+        time.sleep(self.request_delay)
         response = self.client.get(url, headers={"User-Agent": "WarhammerDealBot/0.1"})
         response.raise_for_status()
-        time.sleep(self.request_delay)
         return response.text
 
     @retry(
@@ -70,9 +70,9 @@ class ShopifySitemapAdapter(SourceAdapter):
     )
     def _get_json(self, url: str) -> object:
         validate_https_url(url, self.allowed_hosts)
+        time.sleep(self.request_delay)
         response = self.client.get(url, headers={"User-Agent": "WarhammerDealBot/0.1"})
         response.raise_for_status()
-        time.sleep(self.request_delay)
         return response.json()
 
     @staticmethod

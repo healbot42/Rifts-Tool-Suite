@@ -39,7 +39,6 @@ def test_email_formatting_escapes_untrusted_text(gal_vorbak):
 @pytest.mark.parametrize(
     ("source", "url"),
     [
-        ("warpfire", "https://warpfireminis.com/product"),
         ("gamersguild", "https://www.gamersguildusa.com/product"),
         ("herrick", "https://herrickgames.com/product"),
         ("miniature_market", "https://www.miniaturemarket.com/product"),

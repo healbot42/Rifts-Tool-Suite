@@ -29,9 +29,9 @@ class FlipsideAdapter(SourceAdapter):
         reraise=True,
     )
     def _get(self, url: str) -> httpx.Response:
+        time.sleep(float(self.settings.get("request_delay_seconds", 0.5)))
         response = self.client.get(url, headers={"User-Agent": "WarhammerDealBot/0.1"})
         response.raise_for_status()
-        time.sleep(float(self.settings.get("request_delay_seconds", 0.5)))
         return response
 
     def search(self, product: Product) -> list[Listing]:

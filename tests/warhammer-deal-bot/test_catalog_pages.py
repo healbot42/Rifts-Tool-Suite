@@ -3,11 +3,13 @@ from decimal import Decimal
 import httpx
 from warhammer_deal_bot.sources.catalog_pages import ValhallaCatalogAdapter
 from warhammer_deal_bot.sources.flipside import FlipsideAdapter
-from warhammer_deal_bot.sources.warpfire import WarpfireAdapter
+from warhammer_deal_bot.sources.miniature_market import MiniatureMarketAdapter
 
 
 def test_sitemap_product_page_metadata_parser(gal_vorbak):
-    adapter = WarpfireAdapter({"request_delay_seconds": 0}, httpx.Client())
+    adapter = MiniatureMarketAdapter(
+        {"request_delay_seconds": 0}, httpx.Client()
+    )
     content = """
     <meta property="og:title" content="Gal Vorbak Dark Brethren NIB">
     <meta content="75.65" property="product:price:amount">
@@ -16,7 +18,7 @@ def test_sitemap_product_page_metadata_parser(gal_vorbak):
     """
     listing = adapter.parse_page(
         content,
-        "https://warpfireminis.com/gal-vorbak-dark-brethren/",
+        "https://www.miniaturemarket.com/gal-vorbak-dark-brethren.html",
         gal_vorbak,
     )
     assert listing is not None
@@ -25,7 +27,9 @@ def test_sitemap_product_page_metadata_parser(gal_vorbak):
 
 
 def test_sitemap_product_page_rejects_unavailable_product(gal_vorbak):
-    adapter = WarpfireAdapter({"request_delay_seconds": 0}, httpx.Client())
+    adapter = MiniatureMarketAdapter(
+        {"request_delay_seconds": 0}, httpx.Client()
+    )
     content = """
     <meta property="og:title" content="Gal Vorbak Dark Brethren NIB">
     <meta property="product:price:amount" content="75.65">
@@ -35,7 +39,7 @@ def test_sitemap_product_page_rejects_unavailable_product(gal_vorbak):
     assert (
         adapter.parse_page(
             content,
-            "https://warpfireminis.com/gal-vorbak-dark-brethren/",
+            "https://www.miniaturemarket.com/gal-vorbak-dark-brethren.html",
             gal_vorbak,
         )
         is None
